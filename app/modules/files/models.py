@@ -1,7 +1,7 @@
 from sqlmodel import Field
 
-from core.models import BaseModel
-from modules.files.schema import FileType
+from app.core.models import BaseModel
+from app.modules.files.schema import FileType
 
 
 class File(BaseModel, table=True):

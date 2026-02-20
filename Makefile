@@ -18,7 +18,7 @@ help:
 	@echo "  mypy.run              Type check code with MyPy"
 	@echo ""
 	@echo "Application Commands:"
-	@echo "  app.start             Start Docker containers, API server, and client dev server"
+	@echo "  app.start             Start Docker containers, API server"
 	@echo "  app.stop              Stop all Docker containers and running processes"
 	@echo ""
 	@echo "Examples:"
@@ -27,40 +27,36 @@ help:
 	@echo "  make app.start                                # Start entire application"
 	@echo "  make black.run                                # Format code"
 
-
 db.make_migrations:
-	@uv run alembic revision --autogenerate -m "$(m)"
+	@poetry run alembic revision --autogenerate -m "$(m)"
 
 db.up:
-	@uv run alembic upgrade head
-
-black.run:
-	@uv run black app
-
-ruff.run:
-	@uv run ruff check app --fix && uv run ruff format app
-
-mypy.run:
-	@uv run mypy app
+	@poetry run alembic upgrade head
 
 db.down:
-	@uv run alembic downgrade base
+	@poetry run alembic downgrade base
+
+
+black.run:
+	@poetry run black app
+
+ruff.run:
+	@poetry run ruff check app --fix && poetry run ruff format app
+
+mypy.run:
+	@poetry run mypy app
 
 app.start:
-	@docker network create external_network || true
+	@docker network inspect external_network >nul 2>&1 || docker network create external_network
 	@docker-compose up -d
 	@echo "Starting API server in background..."
 	@make db.up
-	@cd api && uv run python -m app.main &
-	@echo "Starting client development server..."
-	@cd client && npm run dev
+	@poetry run python -m app.main &
 
 app.stop:
-	@echo "Stopping Docker containers..."
-	-@docker stop $$(docker ps -aq) 2>/dev/null
-	-@docker rm $$(docker ps -aq) 2>/dev/null
-	@echo "Stopping API and client servers..."
-	-@pkill -f "python -m app.main" 2>/dev/null
-	-@pkill -f "npm run dev" 2>/dev/null
-	-@pkill -f "vite" 2>/dev/null
-	@echo "All processes stopped."
+	@echo Stopping Docker containers...
+	-@for /f %%i in ('docker ps -aq') do docker stop %%i
+	-@for /f %%i in ('docker ps -aq') do docker rm %%i
+	@echo Stopping API server...
+	-@taskkill /F /IM python.exe >nul 2>&1
+	@echo All processes stopped.

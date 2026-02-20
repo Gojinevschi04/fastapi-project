@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from core.database import get_db_session
+from app.core.database import get_db_session
 
 
 class Repository(ABC):

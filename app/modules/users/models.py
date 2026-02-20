@@ -1,7 +1,7 @@
 from sqlmodel import Field
 
-from core.models import BaseModel
-from modules.users.schema import UserRole
+from app.core.models import BaseModel
+from app.modules.users.schema import UserRole
 
 
 class User(BaseModel, table=True):

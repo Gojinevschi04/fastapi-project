@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     DB_PASS: str = ""
 
     model_config = SettingsConfigDict(
-        env_file=Path(__file__).parent.parent / ".env",
+        env_file=Path(__file__).parent.parent.parent / ".env",
         extra="ignore",
         populate_by_name=True,
     )
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     @computed_field
     def STORAGE_DIR(self) -> Path:  # noqa: N802
-        return Path(__file__).parent.parent / self.STORAGE_PATH
+        return Path(__file__).parent.parent.parent / self.STORAGE_PATH
 
 
 settings = Settings()

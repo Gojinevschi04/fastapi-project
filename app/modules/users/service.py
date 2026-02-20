@@ -2,10 +2,10 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from core.logging import get_logger
-from modules.users.models import User
-from modules.users.repository import UserRepository
-from modules.users.schema import (
+from app.core.logging import get_logger
+from app.modules.users.models import User
+from app.modules.users.repository import UserRepository
+from app.modules.users.schema import (
     UserCreate,
     UserListResponse,
     UserResponse,

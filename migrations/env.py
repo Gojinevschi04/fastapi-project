@@ -7,15 +7,12 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from core.config import settings
+from app.core.config import settings
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
-from modules.users.models import User
-from modules.files.models import File
 
 from sqlmodel import SQLModel
 

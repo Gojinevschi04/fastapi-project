@@ -2,8 +2,8 @@ from collections.abc import Sequence
 
 from sqlmodel import select
 
-from core.repositories import Repository
-from modules.files.models import File
+from app.core.repositories import Repository
+from app.modules.files.models import File
 
 
 class FileRepository(Repository):

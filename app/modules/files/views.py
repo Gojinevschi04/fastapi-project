@@ -4,9 +4,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 
-from core.schema import MessageResponse
-from modules.files.schema import FileResponse
-from modules.files.service import FileService
+from app.core.schema import MessageResponse
+from app.modules.files.schema import FileResponse
+from app.modules.files.service import FileService
 
 router = APIRouter(prefix="/files", tags=["files"])
 

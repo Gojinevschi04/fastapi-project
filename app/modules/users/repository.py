@@ -2,9 +2,9 @@ from collections.abc import Sequence
 
 from sqlmodel import select
 
-from core.repositories import Repository
-from modules.users.models import User
-from modules.users.schema import UserRole
+from app.core.repositories import Repository
+from app.modules.users.models import User
+from app.modules.users.schema import UserRole
 
 
 class UserRepository(Repository):

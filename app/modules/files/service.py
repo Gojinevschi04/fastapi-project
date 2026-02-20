@@ -8,13 +8,13 @@ from typing import Annotated
 import aiofiles
 from fastapi import Depends
 
-from core.config import settings
-from core.logging import get_logger
-from modules.files.exceptions import UnsupportedFileTypeError
-from modules.files.models import File
-from modules.files.repository import FileRepository
-from modules.files.schema import FileContentResponse, FileType
-from modules.users.repository import UserRepository
+from app.core.config import settings
+from app.core.logging import get_logger
+from app.modules.files.exceptions import UnsupportedFileTypeError
+from app.modules.files.models import File
+from app.modules.files.repository import FileRepository
+from app.modules.files.schema import FileContentResponse, FileType
+from app.modules.users.repository import UserRepository
 
 logger = get_logger(__name__)
 

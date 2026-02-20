@@ -1,4 +1,4 @@
-from core.exceptions import BaseServiceError
+from app.core.exceptions import BaseServiceError
 
 
 class UnsupportedFileTypeError(BaseServiceError): ...

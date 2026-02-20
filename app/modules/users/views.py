@@ -2,9 +2,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from core.schema import MessageResponse
-from modules.users.schema import UserCreate, UserListResponse, UserResponse, UserUpdate
-from modules.users.service import AuthService
+from app.core.schema import MessageResponse
+from app.modules.users.schema import UserCreate, UserListResponse, UserResponse, UserUpdate
+from app.modules.users.service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
