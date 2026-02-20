@@ -16,7 +16,7 @@ from app.modules.users.schema import (
 logger = get_logger(__name__)
 
 
-class AuthService:
+class UserService:
     def __init__(
         self,
         user_repository: Annotated[UserRepository, Depends(UserRepository)],

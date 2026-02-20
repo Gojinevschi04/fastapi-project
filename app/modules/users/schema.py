@@ -17,6 +17,7 @@ class UserInfo(BaseModel):
 class UserCreate(BaseModel):
     email: str
     role: UserRole = UserRole.USER
+    password: str
 
 
 class UserUpdate(BaseModel):

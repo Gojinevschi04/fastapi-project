@@ -8,7 +8,7 @@ from app.modules.users.schema import UserCreate, UserResponse, UserRole, UserUpd
 
 @pytest.mark.asyncio
 async def test_create_user(authenticated_client: AsyncClient) -> None:
-    with patch("app.modules.users.service.AuthService.create_user") as mock_create:
+    with patch("app.modules.users.service.UserService.create_user") as mock_create:
         mock_user_response = UserResponse(
             id=3,
             email="newuser@example.com",
@@ -28,7 +28,7 @@ async def test_create_user(authenticated_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_get_users(admin_client: AsyncClient) -> None:
-    with patch("app.modules.users.service.AuthService.get_users") as mock_get_users:
+    with patch("app.modules.users.service.UserService.get_users") as mock_get_users:
         from app.modules.users.schema import UserListResponse
 
         mock_response = UserListResponse(
@@ -48,7 +48,7 @@ async def test_get_users(admin_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_get_user(admin_client: AsyncClient) -> None:
-    with patch("app.modules.users.service.AuthService.get_user") as mock_get_user:
+    with patch("app.modules.users.service.UserService.get_user") as mock_get_user:
         mock_user_response = UserResponse(
             id=1,
             email="test@example.com",
@@ -66,7 +66,7 @@ async def test_get_user(admin_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_get_user_not_found(admin_client: AsyncClient) -> None:
-    with patch("app.modules.users.service.AuthService.get_user") as mock_get_user:
+    with patch("app.modules.users.service.UserService.get_user") as mock_get_user:
         mock_get_user.return_value = None
 
         response = await admin_client.get("/auth/users/99999")
@@ -75,7 +75,7 @@ async def test_get_user_not_found(admin_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_user(admin_client: AsyncClient) -> None:
-    with patch("app.modules.users.service.AuthService.update_user") as mock_update:
+    with patch("app.modules.users.service.UserService.update_user") as mock_update:
         mock_user_response = UserResponse(
             id=1,
             email="updated@example.com",
@@ -95,7 +95,7 @@ async def test_update_user(admin_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_user_not_found(admin_client: AsyncClient) -> None:
-    with patch("app.modules.users.service.AuthService.update_user") as mock_update:
+    with patch("app.modules.users.service.UserService.update_user") as mock_update:
         mock_update.return_value = None
 
         user_data = UserUpdate(email="updated@example.com")
@@ -105,7 +105,7 @@ async def test_update_user_not_found(admin_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_delete_user(admin_client: AsyncClient) -> None:
-    with patch("app.modules.users.service.AuthService.delete_user") as mock_delete:
+    with patch("app.modules.users.service.UserService.delete_user") as mock_delete:
         mock_delete.return_value = True
 
         response = await admin_client.delete("/auth/users/1")
@@ -116,7 +116,7 @@ async def test_delete_user(admin_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_delete_user_not_found(admin_client: AsyncClient) -> None:
-    with patch("app.modules.users.service.AuthService.delete_user") as mock_delete:
+    with patch("app.modules.users.service.UserService.delete_user") as mock_delete:
         mock_delete.return_value = False
 
         response = await admin_client.delete("/auth/users/99999")
