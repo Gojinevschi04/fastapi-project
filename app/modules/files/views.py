@@ -7,6 +7,8 @@ from fastapi.responses import Response
 from app.core.schema import MessageResponse
 from app.modules.files.schema import FileResponse
 from app.modules.files.service import FileService
+from app.modules.users.middleware import get_current_user
+from app.modules.users.models import User
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -20,6 +22,7 @@ def _get_download_url(request: Request, file_id: int) -> str:
 async def upload_file_view(
     file: Annotated[UploadFile, File()],
     file_service: Annotated[FileService, Depends(FileService)],
+    current_user: Annotated[User, Depends(get_current_user)],
     request: Request,
 ) -> FileResponse:
     if not file.filename:
@@ -27,7 +30,7 @@ async def upload_file_view(
 
     try:
         file_content = await file.read()
-        file_record = await file_service.save_file(file_content, file.filename, 1)
+        file_record = await file_service.save_file(file_content, file.filename, current_user.id)
 
         return FileResponse(
             id=file_record.id,
@@ -45,6 +48,7 @@ async def upload_file_view(
 @router.get("/")
 async def get_files_view(
     file_service: Annotated[FileService, Depends(FileService)],
+    _current_user: Annotated[User, Depends(get_current_user)],
     request: Request,
 ) -> list[FileResponse]:
     files = await file_service.get_files()
@@ -70,9 +74,10 @@ async def get_files_view(
 async def get_file_view(
     file_id: int,
     file_service: Annotated[FileService, Depends(FileService)],
+    current_user: Annotated[User, Depends(get_current_user)],
     request: Request,
 ) -> FileResponse:
-    file_record = await file_service.get_file(file_id, 1)
+    file_record = await file_service.get_file(file_id, current_user.id)
 
     if not file_record:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="File not found")
@@ -92,8 +97,9 @@ async def get_file_view(
 async def download_file_view(
     file_id: int,
     file_service: Annotated[FileService, Depends(FileService)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> Response:
-    file_data = await file_service.get_file_content(file_id, 1)
+    file_data = await file_service.get_file_content(file_id, current_user.id)
 
     if not file_data:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="File not found")
@@ -107,8 +113,9 @@ async def download_file_view(
 async def delete_file_view(
     file_id: int,
     file_service: Annotated[FileService, Depends(FileService)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> MessageResponse:
-    success = await file_service.delete_file(file_id, 1)
+    success = await file_service.delete_file(file_id, current_user.id)
 
     if not success:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="File not found")

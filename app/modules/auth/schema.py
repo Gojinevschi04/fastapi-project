@@ -1,19 +1,21 @@
-from typing import Optional, List
-
 from pydantic import BaseModel
 
 
-class Token(BaseModel):
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
-    token_type: str
+    token_type: str = "bearer"
 
 
-class TokenPayload(BaseModel):
-    sub: Optional[str] = None
-    exp: Optional[int] = None
-    roles: List[str] = []
-
-class TokenData(BaseModel):
-    username: Optional[str] = None
-    roles: List[str] = ["user"]
+class RefreshRequest(BaseModel):
+    refresh_token: str

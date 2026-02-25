@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.core.logging import get_logger
+from app.modules.auth.service import AuthService
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schema import (
@@ -28,7 +29,8 @@ class UserService:
         if existing_user:
             raise ValueError("User with this email already exists")
 
-        user = User(email=user_data.email, role=UserRole.USER)
+        hashed_password = AuthService.hash_password(user_data.password)
+        user = User(email=user_data.email, role=UserRole.USER, hashed_password=hashed_password)
         created_user = await self.user_repository.create(user)
         return UserResponse(
             id=created_user.id,

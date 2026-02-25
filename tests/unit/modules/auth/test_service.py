@@ -16,7 +16,7 @@ async def test_create_user_success(mock_session: MagicMock) -> None:
     mock_user_repo.create = AsyncMock(return_value=new_user)
 
     service = UserService(user_repository=mock_user_repo)
-    user_data = UserCreate(email="new@example.com", role=UserRole.USER)
+    user_data = UserCreate(email="new@example.com", role=UserRole.USER, password="testpass123")
     result = await service.create_user(user_data)
 
     assert isinstance(result, UserResponse)
@@ -29,7 +29,7 @@ async def test_create_user_duplicate_email(mock_session: MagicMock, mock_user: U
     mock_user_repo.get_by_email = AsyncMock(return_value=mock_user)
 
     service = UserService(user_repository=mock_user_repo)
-    user_data = UserCreate(email="test@example.com", role=UserRole.USER)
+    user_data = UserCreate(email="test@example.com", role=UserRole.USER, password="testpass123")
     with pytest.raises(ValueError):
         await service.create_user(user_data)
 

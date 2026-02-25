@@ -1,73 +1,36 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+import jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.modules.auth.auth_handler import decode_token
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schema import UserRole
-from app.modules.users.service import UserService
+
+bearer_scheme = HTTPBearer()
 
 
 async def get_current_user(
-    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     user_repository: Annotated[UserRepository, Depends(UserRepository)],
-    auth_service: Annotated[UserService, Depends(UserService)],
 ) -> User:
-    sealed_session = request.cookies.get("wos_session")
+    token = credentials.credentials
+    try:
+        payload = decode_token(token)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-    if not sealed_session:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No session cookie provided",
-        )
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
 
-    session = auth_service.load_sealed_session(sealed_session)
-    if not session:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
-
-    auth_response = session.authenticate()
-
-    if not auth_response.authenticated:
-        if auth_response.reason == "no_session_cookie_provided":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="No session cookie provided",
-            )
-
-        try:
-            refresh_result = session.refresh()
-            if not refresh_result.authenticated:
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired")
-
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Session expired - please refresh",
-                headers=(
-                    {"X-Session-Refresh": refresh_result.sealed_session}
-                    if hasattr(refresh_result, "sealed_session")
-                    else {}
-                ),
-            )
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Authentication failed: {str(e)}",
-            )
-
-    if not auth_response.user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found in session")
-
-    workos_user = auth_response.user
-    user = await user_repository.get_by_workos_id(workos_user.id)
-
-    if user is None:
-        workos_role = await auth_service.get_user_role_from_workos(workos_user.id)
-        user = User(
-            workos_id=workos_user.id,
-            email=workos_user.email if workos_user.email else "",
-            role=workos_role,
-        )
-        user = await user_repository.create(user)
+    user_id = int(payload["sub"])
+    user = await user_repository.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
     return user
 

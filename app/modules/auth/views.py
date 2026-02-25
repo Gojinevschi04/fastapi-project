@@ -1,0 +1,42 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.modules.auth.schema import LoginRequest, RefreshRequest, RegisterRequest, TokenResponse
+from app.modules.auth.service import AuthService
+from app.modules.users.models import User
+from app.modules.users.repository import UserRepository
+from app.modules.users.schema import UserRole
+
+router = APIRouter(prefix="/auth", tags=["authentication"])
+
+
+@router.post("/register", response_model=TokenResponse)
+async def register(
+    data: RegisterRequest,
+    user_repository: Annotated[UserRepository, Depends(UserRepository)],
+) -> TokenResponse:
+    existing_user = await user_repository.get_by_email(data.email)
+    if existing_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User with this email already exists")
+
+    hashed_password = AuthService.hash_password(data.password)
+    user = User(email=data.email, role=UserRole.USER, hashed_password=hashed_password)
+    created_user = await user_repository.create(user)
+    return AuthService.create_tokens(created_user.id)
+
+
+@router.post("/login", response_model=TokenResponse)
+async def login(
+    data: LoginRequest,
+    auth_service: Annotated[AuthService, Depends(AuthService)],
+) -> TokenResponse:
+    user = await auth_service.authenticate_user(data.email, data.password)
+    return AuthService.create_tokens(user.id)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh(
+    data: RefreshRequest,
+) -> TokenResponse:
+    return AuthService.refresh_access_token(data.refresh_token)

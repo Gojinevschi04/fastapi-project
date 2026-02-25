@@ -1,23 +1,27 @@
-import time
+from datetime import datetime, timedelta, timezone
 
 import jwt
 
 from app.core.config import settings
 
 
-def sign_jwt(user_id: str) -> dict[str, str]:
+def create_access_token(user_id: int) -> str:
     payload = {
-        "user_id": user_id,
-        "expires": time.time() + 600
+        "sub": str(user_id),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
+        "type": "access",
     }
-    token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
-
-    return token_response(token)
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
-def decode_jwt(token: str) -> dict:
-    try:
-        decoded_token = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
-        return decoded_token if decoded_token["expires"] >= time.time() else None
-    except:
-        return {}
+def create_refresh_token(user_id: int) -> str:
+    payload = {
+        "sub": str(user_id),
+        "exp": datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+        "type": "refresh",
+    }
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def decode_token(token: str) -> dict:
+    return jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])

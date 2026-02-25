@@ -8,6 +8,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.core.database import get_db_session
 from app.main import app
+from app.modules.users.middleware import get_current_user, get_current_admin_user
 from app.modules.users.models import User
 from app.modules.users.schema import UserRole
 
@@ -76,26 +77,20 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture
 async def authenticated_client(mock_user: User) -> AsyncGenerator[AsyncClient, None]:
-    async def get_user() -> User:
-        return mock_user
-
     app.dependency_overrides[get_db_session] = override_get_db_session
+    app.dependency_overrides[get_current_user] = lambda: mock_user
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    app.dependency_overrides.pop(get_db_session, None)
+    app.dependency_overrides.clear()
 
 
 @pytest_asyncio.fixture
 async def admin_client(mock_admin_user: User) -> AsyncGenerator[AsyncClient, None]:
-    async def get_user() -> User:
-        return mock_admin_user
-
-    async def get_admin() -> User:
-        return mock_admin_user
-
     app.dependency_overrides[get_db_session] = override_get_db_session
+    app.dependency_overrides[get_current_user] = lambda: mock_admin_user
+    app.dependency_overrides[get_current_admin_user] = lambda: mock_admin_user
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    app.dependency_overrides.pop(get_db_session, None)
+    app.dependency_overrides.clear()
