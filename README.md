@@ -1,1 +1,1 @@
-# Hello, first FastAPI project
+# Quiet call AI
