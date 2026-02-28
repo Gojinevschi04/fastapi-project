@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.core.repositories import Repository
 
 

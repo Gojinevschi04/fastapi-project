@@ -1,9 +1,9 @@
 [project]
-name = "fastapiproject"
+name = "quiet-call-ai"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "ana.gojinevschi",email = "ana.gojinevschi@ebs-integrator.com"}
+    { name = "ana.gojinevschi", email = "ana.gojinevschi@ebs-integrator.com" }
 ]
 readme = "README.md"
 requires-python = ">=3.10"
@@ -21,6 +21,7 @@ dependencies = [
     "httpx (>=0.28.1,<0.29.0)",
     "pyjwt (>=2.11.0,<3.0.0)",
     "passlib[bcrypt] (>=1.7.4,<2.0.0)",
+    "cryptography (>=46.0.5,<47.0.0)",
 ]
 
 [tool.poetry]
@@ -63,12 +64,15 @@ lint.select = [
 ]
 
 lint.ignore = [
-    "ISC001", # Disabled to avoid unexpected behaviour on ruff format .
-    "B904",
-    "BLE001",
-    "ANN002",
-    "ANN003",
-    "B024"
+    "ANN002", # Missing type annotation for *args
+    "ANN003", # Missing type annotation for **kwargs
+    "ASYNC240",
+    "E722",
+    "B024", # Abstract base class with no abstract methods (may indicate incorrect ABC usage)
+    "B904", # Within `except` blocks, use `raise ... from err` to preserve exception context
+    "BLE001", # Do not catch blind exceptions (e.g., `except Exception:`) without handling specific types
+    "F841", # Local variable assigned but never used
+    "ISC001", # Conflicting implicit string concatenation (disabled to avoid unexpected behavior with `ruff format`)]
 ]
 
 [tool.ruff.format]

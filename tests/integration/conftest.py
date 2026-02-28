@@ -8,7 +8,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.core.database import get_db_session
 from app.main import app
-from app.modules.users.middleware import get_current_user, get_current_admin_user
+from app.modules.users.middleware import get_current_admin_user, get_current_user
 from app.modules.users.models import User
 from app.modules.users.schema import UserRole
 

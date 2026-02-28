@@ -1,8 +1,6 @@
 import logging
 from unittest.mock import patch
 
-import pytest
-
 from app.core.logging import get_logger, setup_logging
 
 

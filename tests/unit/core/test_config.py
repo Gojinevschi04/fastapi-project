@@ -24,10 +24,10 @@ def test_db_url_computed_field() -> None:
     ):
         test_settings = Settings()
         expected_url = "postgresql+asyncpg://testuser:testpass@localhost:5432/testdb"
-        assert test_settings.DB_URL == expected_url
+        assert expected_url == test_settings.DB_URL
 
 
 def test_storage_dir_computed_field() -> None:
     with patch.dict("os.environ", {}, clear=True):
         test_settings = Settings()
-        assert test_settings.STORAGE_DIR.name == "storage"
+        assert test_settings.STORAGE_DIR.name == "storage"  # type: ignore

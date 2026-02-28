@@ -110,13 +110,12 @@ async def test_delete_file_success(mock_session: MagicMock, mock_file: File) -> 
 
     with patch("app.modules.files.service.settings") as mock_settings:
         mock_settings.STORAGE_DIR = Path("/tmp")
-        with patch("pathlib.Path.exists", return_value=True):
-            with patch("pathlib.Path.unlink") as mock_unlink:
-                service = FileService(file_repository=mock_file_repo, user_repository=mock_user_repo)
-                result = await service.delete_file(1, 1)
+        with patch("pathlib.Path.exists", return_value=True), patch("pathlib.Path.unlink") as mock_unlink:
+            service = FileService(file_repository=mock_file_repo, user_repository=mock_user_repo)
+            result = await service.delete_file(1, 1)
 
-                assert result is True
-                mock_unlink.assert_called_once()
+            assert result is True
+            mock_unlink.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -141,19 +140,18 @@ async def test_get_file_content_success(mock_session: MagicMock, mock_file: File
 
     with patch("app.modules.files.service.settings") as mock_settings:
         mock_settings.STORAGE_DIR = Path("/tmp")
-        with patch("pathlib.Path.exists", return_value=True):
-            with patch("aiofiles.open", create=True) as mock_open:
-                mock_file_obj = MagicMock()
-                mock_file_obj.__aenter__ = AsyncMock(return_value=mock_file_obj)
-                mock_file_obj.__aexit__ = AsyncMock()
-                mock_file_obj.read = AsyncMock(return_value=b"file content")
-                mock_open.return_value = mock_file_obj
+        with patch("pathlib.Path.exists", return_value=True), patch("aiofiles.open", create=True) as mock_open:
+            mock_file_obj = MagicMock()
+            mock_file_obj.__aenter__ = AsyncMock(return_value=mock_file_obj)
+            mock_file_obj.__aexit__ = AsyncMock()
+            mock_file_obj.read = AsyncMock(return_value=b"file content")
+            mock_open.return_value = mock_file_obj
 
-                service = FileService(file_repository=mock_file_repo, user_repository=mock_user_repo)
-                result = await service.get_file_content(1, 1)
+            service = FileService(file_repository=mock_file_repo, user_repository=mock_user_repo)
+            result = await service.get_file_content(1, 1)
 
-                assert isinstance(result, FileContentResponse)
-                assert result.content == b"file content"
+            assert isinstance(result, FileContentResponse)
+            assert result.content == b"file content"
 
 
 @pytest.mark.asyncio

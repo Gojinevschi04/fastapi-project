@@ -20,7 +20,7 @@ async def test_get_db_session_closes_on_exit() -> None:
     mock_session_context.__aexit__ = AsyncMock(return_value=None)
 
     with patch("app.core.database.async_session", return_value=mock_session_context):
-        async for session in get_db_session():
+        async for _session in get_db_session():
             pass
 
     session_mock.close.assert_called_once()
