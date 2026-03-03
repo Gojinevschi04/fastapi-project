@@ -4,3 +4,4 @@ venv/
 .env
 storage
 logs
+__pycache__/

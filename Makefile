@@ -36,6 +36,9 @@ db.up:
 db.down:
 	@poetry run alembic downgrade base
 
+db.seed:
+	@poetry run python -m app.scripts.seed_templates
+
 
 black.run:
 	@poetry run black app

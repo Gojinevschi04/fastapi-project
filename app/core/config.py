@@ -20,6 +20,26 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_PHONE_NUMBER: str = ""
+
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o"
+    OPENAI_TTS_MODEL: str = "tts-1"
+    OPENAI_TTS_VOICE: str = "alloy"
+    OPENAI_STT_MODEL: str = "whisper-1"
+
+    BASE_URL: str = "http://localhost:8000"
+
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    EMAIL_FROM: str = "noreply@quietcall.ai"
+    EMAIL_FROM_NAME: str = "Quiet Call AI"
+    EMAIL_ENABLED: bool = False
+
     model_config = SettingsConfigDict(
         env_file=Path(__file__).parent.parent.parent / ".env",
         extra="ignore",
