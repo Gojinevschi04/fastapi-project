@@ -16,6 +16,12 @@ if config.config_file_name is not None:
 
 from sqlmodel import SQLModel
 
+import app.modules.calls.models  # noqa: F401
+import app.modules.files.models  # noqa: F401
+import app.modules.tasks.models  # noqa: F401
+import app.modules.templates.models  # noqa: F401
+import app.modules.users.models  # noqa: F401
+
 target_metadata = SQLModel.metadata
 
 # other values from the config, defined by the needs of env.py,
