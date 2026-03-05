@@ -8,3 +8,4 @@ class User(BaseModel, table=True):
     email: str | None = Field(index=True, nullable=True)
     role: UserRole = Field(default=UserRole.USER)
     hashed_password: str | None = Field(nullable=True)
+    phone_number: str | None = Field(default=None, nullable=True)

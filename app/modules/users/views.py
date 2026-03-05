@@ -5,10 +5,50 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.schema import MessageResponse
 from app.modules.users.middleware import get_current_user
 from app.modules.users.models import User
-from app.modules.users.schema import UserCreate, UserListResponse, UserResponse, UserUpdate
+from app.modules.users.schema import (
+    ChangePassword,
+    ProfileUpdate,
+    UserCreate,
+    UserListResponse,
+    UserResponse,
+    UserUpdate,
+)
 from app.modules.users.service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_profile_view(
+    user_service: Annotated[UserService, Depends(UserService)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> UserResponse:
+    return await user_service.get_profile(current_user.id)
+
+
+@router.put("/me", response_model=UserResponse)
+async def update_profile_view(
+    data: ProfileUpdate,
+    user_service: Annotated[UserService, Depends(UserService)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> UserResponse:
+    try:
+        return await user_service.update_profile(current_user.id, data)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/me/change-password")
+async def change_password_view(
+    data: ChangePassword,
+    user_service: Annotated[UserService, Depends(UserService)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> MessageResponse:
+    try:
+        await user_service.change_password(current_user.id, data)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return MessageResponse(message="Password changed successfully")
 
 
 @router.post("/", response_model=UserResponse)

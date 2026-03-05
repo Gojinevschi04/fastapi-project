@@ -21,7 +21,7 @@ async def register(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User with this email already exists")
 
     hashed_password = AuthService.hash_password(data.password)
-    user = User(email=data.email, role=UserRole.USER, hashed_password=hashed_password)
+    user = User(email=data.email, role=UserRole.USER, hashed_password=hashed_password, phone_number=data.phone_number)
     created_user = await user_repository.create(user)
     return AuthService.create_tokens(created_user.id)
 

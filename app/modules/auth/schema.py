@@ -9,6 +9,7 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     email: str
     password: str
+    phone_number: str | None = None
 
 
 class TokenResponse(BaseModel):
