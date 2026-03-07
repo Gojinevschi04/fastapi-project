@@ -1,0 +1,10 @@
+from app.core.exceptions import BaseServiceError
+
+
+class TaskNotFoundError(BaseServiceError): ...
+
+
+class TaskNotCancellableError(BaseServiceError): ...
+
+
+class InvalidTaskDataError(BaseServiceError): ...
