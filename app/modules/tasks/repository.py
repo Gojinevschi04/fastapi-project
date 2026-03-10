@@ -56,6 +56,28 @@ class TaskRepository(Repository):
             counts[status] = count
         return counts
 
+    async def get_all_paginated_admin(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        status: TaskStatus | None = None,
+    ) -> tuple[Sequence[Task], int]:
+        query = select(Task)
+        count_query = select(func.count()).select_from(Task)
+
+        if status:
+            query = query.where(Task.status == status)
+            count_query = count_query.where(Task.status == status)
+
+        query = query.order_by(Task.created_at.desc()).offset(offset).limit(limit)
+
+        result = await self._session.exec(query)
+        tasks = result.all()
+        count_result = await self._session.exec(count_query)
+        total = count_result.one()
+
+        return tasks, total
+
     async def count_by_status_all(self) -> dict[str, int]:
         result = await self._session.exec(
             select(Task.status, func.count()).group_by(Task.status)

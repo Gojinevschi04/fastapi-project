@@ -1,9 +1,13 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
 
-from app.modules.tasks.schema import AdminStatsResponse, TaskStatsResponse
+from app.modules.tasks.schema import AdminStatsResponse, TaskStatsResponse, TaskStatus
+from app.modules.users.schema import UserListResponse, UserResponse, UserRole
+
+
+# --- Stats ---
 
 
 @pytest.mark.asyncio
@@ -38,6 +42,165 @@ async def test_get_admin_stats_unauthenticated(client: AsyncClient) -> None:
     assert response.status_code == 401
 
 
+# --- Admin Users ---
+
+
+@pytest.mark.asyncio
+async def test_get_admin_users(admin_client: AsyncClient) -> None:
+    with patch("app.modules.admin.service.AdminService.get_all_users") as mock_get:
+        mock_user = MagicMock()
+        mock_user.id = 1
+        mock_user.email = "user@test.com"
+        mock_user.role = UserRole.USER
+        mock_user.phone_number = "+37312345678"
+        mock_user.created_at.isoformat.return_value = "2026-01-01T00:00:00"
+        mock_user.updated_at.isoformat.return_value = "2026-01-01T00:00:00"
+        mock_get.return_value = ([mock_user], 1)
+
+        response = await admin_client.get("/admin/users")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["users"][0]["email"] == "user@test.com"
+
+
+@pytest.mark.asyncio
+async def test_get_admin_users_non_admin(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.get("/admin/users")
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_admin_users_unauthenticated(client: AsyncClient) -> None:
+    response = await client.get("/admin/users")
+    assert response.status_code == 401
+
+
+# --- Admin Tasks ---
+
+
+@pytest.mark.asyncio
+async def test_get_admin_tasks(admin_client: AsyncClient) -> None:
+    with patch("app.modules.admin.service.AdminService.get_all_tasks") as mock_get:
+        mock_task = MagicMock()
+        mock_task.id = 1
+        mock_task.target_phone = "+37312345678"
+        mock_task.status = TaskStatus.COMPLETED
+        mock_task.template_id = 1
+        mock_task.slot_data = {}
+        mock_task.scheduled_time = None
+        mock_task.summary = "Done"
+        mock_task.error_reason = None
+        mock_task.created_at = "2026-01-01T00:00:00"
+        mock_task.updated_at = "2026-01-01T00:00:00"
+        mock_get.return_value = ([mock_task], 1)
+
+        response = await admin_client.get("/admin/tasks")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["target_phone"] == "+37312345678"
+
+
+@pytest.mark.asyncio
+async def test_get_admin_tasks_with_status_filter(admin_client: AsyncClient) -> None:
+    with patch("app.modules.admin.service.AdminService.get_all_tasks") as mock_get:
+        mock_get.return_value = ([], 0)
+        response = await admin_client.get("/admin/tasks?status=failed")
+        assert response.status_code == 200
+        assert response.json()["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_get_admin_tasks_non_admin(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.get("/admin/tasks")
+    assert response.status_code == 403
+
+
+# --- Update User Role ---
+
+
+@pytest.mark.asyncio
+async def test_update_user_role(admin_client: AsyncClient) -> None:
+    with patch("app.modules.admin.service.AdminService.update_user_role") as mock_update:
+        mock_user = MagicMock()
+        mock_user.id = 1
+        mock_user.email = "user@test.com"
+        mock_user.role = UserRole.ADMIN
+        mock_user.phone_number = None
+        mock_user.created_at.isoformat.return_value = "2026-01-01T00:00:00"
+        mock_user.updated_at.isoformat.return_value = "2026-01-01T00:00:00"
+        mock_update.return_value = mock_user
+
+        response = await admin_client.put("/admin/users/1", json={"role": "admin"})
+        assert response.status_code == 200
+        assert response.json()["role"] == "admin"
+
+
+@pytest.mark.asyncio
+async def test_update_user_role_not_found(admin_client: AsyncClient) -> None:
+    with patch("app.modules.admin.service.AdminService.update_user_role") as mock_update:
+        mock_update.return_value = None
+        response = await admin_client.put("/admin/users/999", json={"role": "admin"})
+        assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_user_role_self_blocked(admin_client: AsyncClient) -> None:
+    response = await admin_client.put("/admin/users/2", json={"role": "user"})  # admin has id=2
+    assert response.status_code == 400
+    assert "Cannot change your own role" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_update_user_role_no_role(admin_client: AsyncClient) -> None:
+    response = await admin_client.put("/admin/users/1", json={})
+    assert response.status_code == 400
+    assert "Role is required" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_update_user_role_non_admin(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.put("/admin/users/1", json={"role": "admin"})
+    assert response.status_code == 403
+
+
+# --- Delete User via Admin ---
+
+
+@pytest.mark.asyncio
+async def test_delete_admin_user(admin_client: AsyncClient) -> None:
+    with patch("app.modules.admin.service.AdminService.delete_user") as mock_delete:
+        mock_delete.return_value = True
+        response = await admin_client.delete("/admin/users/1")
+        assert response.status_code == 200
+        assert response.json()["message"] == "User deleted successfully"
+
+
+@pytest.mark.asyncio
+async def test_delete_admin_user_not_found(admin_client: AsyncClient) -> None:
+    with patch("app.modules.admin.service.AdminService.delete_user") as mock_delete:
+        mock_delete.return_value = False
+        response = await admin_client.delete("/admin/users/999")
+        assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_admin_user_self_blocked(admin_client: AsyncClient) -> None:
+    response = await admin_client.delete("/admin/users/2")  # admin has id=2
+    assert response.status_code == 400
+    assert "Cannot delete your own account" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_delete_admin_user_non_admin(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.delete("/admin/users/1")
+    assert response.status_code == 403
+
+
+# --- Password Reset ---
+
+
 @pytest.mark.asyncio
 async def test_password_reset(client: AsyncClient) -> None:
     with patch("app.modules.users.repository.UserRepository.get_by_email") as mock_get:
@@ -50,18 +213,20 @@ async def test_password_reset(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_password_reset_existing_email(client: AsyncClient) -> None:
     with patch("app.modules.users.repository.UserRepository.get_by_email") as mock_get:
-        mock_get.return_value = True  # user exists
+        mock_get.return_value = True
         response = await client.post("/auth/reset-password", json={"email": "existing@example.com"})
         assert response.status_code == 200
-        # Same response whether email exists or not (security)
         assert "reset link" in response.json()["message"].lower()
+
+
+# --- Access control on /users/ endpoints ---
 
 
 @pytest.mark.asyncio
 async def test_create_user_non_admin_forbidden(authenticated_client: AsyncClient) -> None:
     response = await authenticated_client.post(
         "/users/",
-        json={"email": "new@example.com", "password": "test123", "role": "user"},
+        json={"email": "new@example.com", "password": "test12345", "role": "user"},
     )
     assert response.status_code == 403
 
@@ -80,6 +245,6 @@ async def test_delete_user_non_admin_forbidden(authenticated_client: AsyncClient
 
 @pytest.mark.asyncio
 async def test_admin_self_deletion_prevented(admin_client: AsyncClient) -> None:
-    response = await admin_client.delete("/users/2")  # admin_client user has id=2
+    response = await admin_client.delete("/users/2")
     assert response.status_code == 400
     assert "Cannot delete your own account" in response.json()["detail"]

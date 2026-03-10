@@ -2,11 +2,16 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from collections.abc import Sequence
+
 from app.core.logging import get_logger
 from app.modules.calls.repository import CallSessionRepository
+from app.modules.tasks.models import Task
 from app.modules.tasks.repository import TaskRepository
 from app.modules.tasks.schema import AdminStatsResponse, TaskStatsResponse, TaskStatus
+from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
+from app.modules.users.schema import UserRole
 
 logger = get_logger(__name__)
 
@@ -43,3 +48,17 @@ class AdminService:
             tasks_by_status=tasks_by_status,
             total_calls=total_calls,
         )
+
+    async def get_all_users(self, limit: int = 50, offset: int = 0) -> tuple[Sequence[User], int]:
+        return await self.user_repository.get_all_paginated(offset, limit)
+
+    async def get_all_tasks(
+        self, limit: int = 50, offset: int = 0, status: TaskStatus | None = None
+    ) -> tuple[Sequence[Task], int]:
+        return await self.task_repository.get_all_paginated_admin(limit, offset, status)
+
+    async def update_user_role(self, user_id: int, role: UserRole) -> User | None:
+        return await self.user_repository.update_user_role(user_id, role)
+
+    async def delete_user(self, user_id: int) -> bool:
+        return await self.user_repository.delete(user_id)

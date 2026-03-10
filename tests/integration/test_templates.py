@@ -20,7 +20,7 @@ async def test_create_template(admin_client: AsyncClient) -> None:
 
         response = await admin_client.post(
             "/templates/",
-            json={"name": "Make Appointment", "base_script": "Hello", "required_slots": ["preferred_date"]},
+            json={"name": "Make Appointment", "base_script": "Hello, I would like to help you today.", "required_slots": ["preferred_date"]},
         )
         assert response.status_code == 201
         assert response.json()["name"] == "Make Appointment"
@@ -32,7 +32,7 @@ async def test_create_template_duplicate(admin_client: AsyncClient) -> None:
         mock_create.side_effect = TemplateNameExistsError("Already exists")
         response = await admin_client.post(
             "/templates/",
-            json={"name": "Duplicate", "base_script": "Hello", "required_slots": []},
+            json={"name": "Duplicate", "base_script": "Hello, I would like to help you today.", "required_slots": []},
         )
         assert response.status_code == 409
 
@@ -43,7 +43,7 @@ async def test_get_templates(authenticated_client: AsyncClient) -> None:
         mock_template = MagicMock()
         mock_template.id = 1
         mock_template.name = "Make Appointment"
-        mock_template.base_script = "Hello"
+        mock_template.base_script = "Hello, I would like to help you today."
         mock_template.required_slots = []
         mock_template.created_at = "2026-01-01T00:00:00"
         mock_template.updated_at = "2026-01-01T00:00:00"
@@ -60,7 +60,7 @@ async def test_get_template(authenticated_client: AsyncClient) -> None:
         mock_template = MagicMock()
         mock_template.id = 1
         mock_template.name = "Make Appointment"
-        mock_template.base_script = "Hello"
+        mock_template.base_script = "Hello, I would like to help you today."
         mock_template.required_slots = []
         mock_template.created_at = "2026-01-01T00:00:00"
         mock_template.updated_at = "2026-01-01T00:00:00"
@@ -117,7 +117,7 @@ async def test_delete_template_in_use(admin_client: AsyncClient) -> None:
 async def test_create_template_non_admin_forbidden(authenticated_client: AsyncClient) -> None:
     response = await authenticated_client.post(
         "/templates/",
-        json={"name": "Test", "base_script": "Hello", "required_slots": []},
+        json={"name": "Test", "base_script": "Hello, I would like to help you today.", "required_slots": []},
     )
     assert response.status_code == 403
 

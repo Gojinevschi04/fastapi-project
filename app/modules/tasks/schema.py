@@ -29,6 +29,18 @@ class TaskBase(BaseModel):
             raise ValueError("Invalid phone number format. Expected: +XXXXXXXXXXX")
         return v
 
+    @field_validator("slot_data")
+    @classmethod
+    def validate_slot_data(cls, v: dict[str, str]) -> dict[str, str]:
+        if len(v) > 20:
+            raise ValueError("Maximum 20 slot values allowed")
+        for key, value in v.items():
+            if len(key) > 50:
+                raise ValueError(f"Slot key '{key[:20]}...' exceeds 50 characters")
+            if len(value) > 500:
+                raise ValueError(f"Slot value for '{key}' exceeds 500 characters")
+        return v
+
     @field_validator("scheduled_time")
     @classmethod
     def validate_scheduled_time(cls, v: datetime | None) -> datetime | None:

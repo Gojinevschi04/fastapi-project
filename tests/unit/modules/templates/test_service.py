@@ -17,7 +17,7 @@ async def test_create_template_success(mock_template: DialogTemplate) -> None:
     mock_repo.create = AsyncMock(return_value=mock_template)
 
     service = TemplateService(template_repository=mock_repo)
-    data = TemplateCreate(name="Make Appointment", base_script="Hello", required_slots=["date"])
+    data = TemplateCreate(name="Make Appointment", base_script="Hello, I'd like to help you today.", required_slots=["date"])
     result = await service.create_template(data)
 
     assert result == mock_template
@@ -30,7 +30,7 @@ async def test_create_template_duplicate_name(mock_template: DialogTemplate) -> 
     mock_repo.get_by_name = AsyncMock(return_value=mock_template)
 
     service = TemplateService(template_repository=mock_repo)
-    data = TemplateCreate(name="Make Appointment", base_script="Hello", required_slots=[])
+    data = TemplateCreate(name="Make Appointment", base_script="Hello, I'd like to help you today.", required_slots=[])
 
     with pytest.raises(TemplateNameExistsError):
         await service.create_template(data)

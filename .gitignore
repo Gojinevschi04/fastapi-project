@@ -8,3 +8,5 @@ __pycache__/
 plans/
 CLAUDE.md
 .claude/
+.coverage
+nul
