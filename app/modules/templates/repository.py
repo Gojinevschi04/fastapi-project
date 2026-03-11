@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlmodel import select
+from sqlmodel import func, select
 
 from app.core.repositories import Repository
 from app.modules.templates.models import DialogTemplate
@@ -22,8 +22,20 @@ class TemplateRepository(Repository):
         return result.first()
 
     async def get_all(self) -> Sequence[DialogTemplate]:
-        result = await self._session.exec(select(DialogTemplate))
+        result = await self._session.exec(select(DialogTemplate).order_by(DialogTemplate.name))
         return result.all()
+
+    async def get_all_paginated(
+        self, limit: int = 50, offset: int = 0
+    ) -> tuple[Sequence[DialogTemplate], int]:
+        query = select(DialogTemplate).order_by(DialogTemplate.name).offset(offset).limit(limit)
+        result = await self._session.exec(query)
+        templates = result.all()
+
+        count_result = await self._session.exec(select(func.count()).select_from(DialogTemplate))
+        total = count_result.one()
+
+        return templates, total
 
     async def update(self, template: DialogTemplate) -> DialogTemplate:
         await self._session.commit()

@@ -1,10 +1,14 @@
 import asyncio
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+from app.core.config import settings
+from app.core.health import router as health_router
+from app.core.middleware import RequestLoggingMiddleware
+from app.core.rate_limit import RateLimitMiddleware
 from app.modules.admin.views import router as admin_router
 from app.modules.auth.views import router as auth_router
 from app.modules.calls.views import router as calls_router
@@ -28,16 +32,32 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 def get_application() -> FastAPI:
-    app = FastAPI(title="Quiet Call AI", version="1.0.0", lifespan=lifespan)
+    app = FastAPI(
+        title="Quiet Call AI",
+        version="1.0.0",
+        lifespan=lifespan,
+        docs_url="/docs",
+        redoc_url="/redoc",
+    )
 
+    # CORS — configurable origins
+    origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
+    # Request logging
+    app.add_middleware(RequestLoggingMiddleware)
+
+    # Rate limiting
+    app.add_middleware(RateLimitMiddleware)
+
+    # Routers
+    app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(users_router)
     app.include_router(files_router)

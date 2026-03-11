@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.schema import MessageResponse
 from app.modules.templates.exceptions import TemplateInUseError, TemplateNameExistsError, TemplateNotFoundError
@@ -38,8 +38,10 @@ async def create_template_view(
 async def get_templates_view(
     template_service: Annotated[TemplateService, Depends(TemplateService)],
     _current_user: Annotated[User, Depends(get_current_user)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[TemplateResponse]:
-    templates = await template_service.get_templates()
+    templates = await template_service.get_templates(limit, offset)
     return [
         TemplateResponse(
             id=t.id,

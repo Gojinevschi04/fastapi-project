@@ -39,8 +39,9 @@ class TemplateService:
             raise TemplateNotFoundError(f"Template with id {template_id} not found")
         return template
 
-    async def get_templates(self) -> Sequence[DialogTemplate]:
-        return await self.template_repository.get_all()
+    async def get_templates(self, limit: int = 50, offset: int = 0) -> Sequence[DialogTemplate]:
+        templates, _ = await self.template_repository.get_all_paginated(limit, offset)
+        return templates
 
     async def update_template(self, template_id: int, data: TemplateUpdate) -> DialogTemplate:
         template = await self.template_repository.get_by_id(template_id)

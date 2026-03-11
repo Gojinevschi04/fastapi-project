@@ -13,6 +13,6 @@ class Task(BaseModel, table=True):
     template_id: int = Field(foreign_key="dialog_template.id", nullable=False)
     user_id: int = Field(foreign_key="user.id", nullable=False, index=True)
     slot_data: dict[str, str] = Field(default={}, sa_column=Column(JSON, nullable=False))
-    scheduled_time: datetime | None = Field(default=None, nullable=True)
+    scheduled_time: datetime | None = Field(default=None, nullable=True, index=True)
     summary: str | None = Field(default=None, nullable=True)
     error_reason: str | None = Field(default=None, nullable=True)

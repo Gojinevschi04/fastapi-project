@@ -1,3 +1,7 @@
+import os
+
+os.environ["RATE_LIMIT_PER_MINUTE"] = "0"
+
 from collections.abc import AsyncGenerator
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock

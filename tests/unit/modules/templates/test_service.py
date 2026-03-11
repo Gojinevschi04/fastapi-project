@@ -61,12 +61,25 @@ async def test_get_template_not_found() -> None:
 @pytest.mark.asyncio
 async def test_get_templates(mock_template: DialogTemplate) -> None:
     mock_repo = MagicMock(spec=TemplateRepository)
-    mock_repo.get_all = AsyncMock(return_value=[mock_template])
+    mock_repo.get_all_paginated = AsyncMock(return_value=([mock_template], 1))
 
     service = TemplateService(template_repository=mock_repo)
     result = await service.get_templates()
 
     assert len(result) == 1
+    mock_repo.get_all_paginated.assert_called_once_with(50, 0)
+
+
+@pytest.mark.asyncio
+async def test_get_templates_with_pagination(mock_template: DialogTemplate) -> None:
+    mock_repo = MagicMock(spec=TemplateRepository)
+    mock_repo.get_all_paginated = AsyncMock(return_value=([mock_template], 1))
+
+    service = TemplateService(template_repository=mock_repo)
+    result = await service.get_templates(limit=10, offset=5)
+
+    assert len(result) == 1
+    mock_repo.get_all_paginated.assert_called_once_with(10, 5)
 
 
 @pytest.mark.asyncio

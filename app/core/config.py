@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     OPENAI_STT_MODEL: str = "whisper-1"
 
     BASE_URL: str = "http://localhost:8000"
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    RATE_LIMIT_PER_MINUTE: int = 60
 
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
