@@ -18,6 +18,18 @@ class IVoiceProvider(ABC):
     async def get_recording_url(self, call_sid: str) -> str | None:
         """Get recording URL for a completed call."""
 
+    @abstractmethod
+    async def play_audio(self, call_sid: str, audio_bytes: bytes) -> None:
+        """Stream synthesized audio to an active call via TwiML update."""
+
+    @abstractmethod
+    async def listen(self, call_sid: str, timeout: int = 10) -> bytes:
+        """Capture audio from the interlocutor via Twilio Gather. Returns raw audio bytes."""
+
+    @abstractmethod
+    async def get_recording_audio(self, recording_url: str) -> bytes:
+        """Download recording audio bytes from provider."""
+
 
 class ILLMProvider(ABC):
     @abstractmethod
@@ -31,3 +43,7 @@ class ILLMProvider(ABC):
     @abstractmethod
     async def synthesize(self, text: str) -> bytes:
         """Text-to-speech: convert text to audio bytes."""
+
+    @abstractmethod
+    async def detect_intent(self, text: str) -> str | None:
+        """Extract intent from interlocutor text. Returns intent label or None."""

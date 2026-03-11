@@ -8,6 +8,14 @@ from app.integrations.interfaces import ILLMProvider
 
 logger = get_logger(__name__)
 
+INTENT_DETECTION_PROMPT = (
+    "Analyze the following text spoken by a person during a phone call. "
+    "Classify the intent into exactly one of these categories: "
+    "confirmation, rejection, request_info, provide_info, greeting, "
+    "farewell, ask_reschedule, express_confusion, or unknown. "
+    "Respond with ONLY the intent label, nothing else."
+)
+
 
 class OpenAIAdapter(ILLMProvider):
     def __init__(self) -> None:
@@ -53,3 +61,26 @@ class OpenAIAdapter(ILLMProvider):
         audio_bytes = response.content
         logger.debug("Synthesized %d bytes of audio", len(audio_bytes))
         return audio_bytes
+
+    async def detect_intent(self, text: str) -> str | None:
+        """Classify the interlocutor's intent using GPT."""
+        if not text or not text.strip():
+            return None
+
+        logger.debug("Detecting intent for: %s", text[:100])
+        try:
+            response = await self._client.chat.completions.create(
+                model=self._model,
+                messages=[
+                    {"role": "system", "content": INTENT_DETECTION_PROMPT},
+                    {"role": "user", "content": text},
+                ],
+                temperature=0,
+                max_tokens=20,
+            )
+            intent = (response.choices[0].message.content or "").strip().lower()
+            logger.debug("Detected intent: %s", intent)
+            return intent if intent else None
+        except Exception as e:
+            logger.warning("Intent detection failed: %s", str(e))
+            return None

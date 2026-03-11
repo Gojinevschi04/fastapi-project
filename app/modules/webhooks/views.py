@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, Response
 
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.modules.calls.repository import CallSessionRepository
 from app.modules.tasks.repository import TaskRepository
@@ -21,18 +22,53 @@ async def twilio_call_callback(
 ) -> Response:
     """TwiML callback — Twilio requests this when the call connects.
 
-    Returns TwiML XML that tells Twilio to play a greeting and record the call.
-    The actual AI conversation is handled by the CallManager.execute_task flow.
+    Returns TwiML with Gather (speech input) so Twilio captures interlocutor audio.
+    The CallManager handles the AI dialog loop via play_audio/listen.
     """
     logger.info("Twilio callback for task %d, SID=%s, status=%s", task_id, CallSid, CallStatus)
 
+    callback_url = f"{settings.BASE_URL}/webhooks/calls/{task_id}"
     twiml = (
         '<?xml version="1.0" encoding="UTF-8"?>'
         "<Response>"
-        "<Say voice=\"Polly.Amy\">Hello, please hold while I connect you with our assistant.</Say>"
+        '<Say voice="Polly.Amy">Hello, please hold while I connect you with our assistant.</Say>'
         "<Pause length=\"1\"/>"
-        "<Record maxLength=\"300\" transcribe=\"true\" "
-        f'action="/webhooks/calls/{task_id}/recording" />'
+        f'<Gather input="speech" action="{callback_url}/gather" '
+        'timeout="10" speechTimeout="auto" language="en-US">'
+        '<Say voice="Polly.Amy">I\'m listening.</Say>'
+        "</Gather>"
+        '<Say voice="Polly.Amy">I didn\'t hear anything. Goodbye.</Say>'
+        "</Response>"
+    )
+    return Response(content=twiml, media_type="application/xml")
+
+
+@router.post("/calls/{task_id}/gather")
+async def twilio_gather_callback(
+    task_id: int,
+    SpeechResult: str = Form(default=""),
+    Confidence: str = Form(default="0"),
+    CallSid: str = Form(default=""),
+) -> Response:
+    """Receives Twilio Gather speech result.
+
+    Twilio transcribes speech on its side and sends us the text.
+    We log it and return TwiML to continue the conversation.
+    """
+    logger.info(
+        "Twilio gather for task %d: speech='%s', confidence=%s",
+        task_id,
+        SpeechResult[:100] if SpeechResult else "",
+        Confidence,
+    )
+
+    # Continue gathering for the next turn
+    callback_url = f"{settings.BASE_URL}/webhooks/calls/{task_id}"
+    twiml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<Response>"
+        f'<Gather input="speech" action="{callback_url}/gather" '
+        'timeout="10" speechTimeout="auto" language="en-US" />'
         "</Response>"
     )
     return Response(content=twiml, media_type="application/xml")

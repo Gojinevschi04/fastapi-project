@@ -69,12 +69,14 @@ class CallManager:
         try:
             system_prompt = self._build_system_prompt(template.base_script, task.slot_data)
 
+            # 1. Initiate the call (with retry on busy/no-answer)
             call_sid = await self._voice.initiate_call(
                 to_phone=task.target_phone,
                 callback_url=f"{self._get_callback_base()}/webhooks/calls/{task.id}",
             )
             logger.info("Call SID: %s for task %d", call_sid, task.id)
 
+            # 2. Generate opening message
             conversation_history: list[dict[str, str]] = []
             noise_retries = 0
 
@@ -82,12 +84,17 @@ class CallManager:
             conversation_history.append({"role": "assistant", "content": opening})
             log_lines.append(self._create_log_line(call_session.id, Speaker.AGENT, opening))
 
-            await self._llm.synthesize(opening)
+            # 3. Synthesize and play opening audio to the call
+            opening_audio = await self._llm.synthesize(opening)
+            await self._voice.play_audio(call_sid, opening_audio)
 
+            # 4. Dialog loop: listen → STT → intent → generate → TTS → play
             for _turn in range(MAX_DIALOG_TURNS):
-                interlocutor_text = await self._simulate_listen(call_sid)
+                # Listen for interlocutor speech
+                audio_bytes = await self._voice.listen(call_sid)
 
-                if not interlocutor_text or interlocutor_text.strip() == "":
+                if not audio_bytes or len(audio_bytes) < 100:
+                    # No meaningful audio captured — likely silence/noise
                     noise_retries += 1
                     if noise_retries >= MAX_RETRY_ON_NOISE:
                         log_lines.append(
@@ -97,28 +104,69 @@ class CallManager:
                     apology = "I'm sorry, I didn't catch that. Could you please repeat?"
                     conversation_history.append({"role": "assistant", "content": apology})
                     log_lines.append(self._create_log_line(call_session.id, Speaker.AGENT, apology))
+                    apology_audio = await self._llm.synthesize(apology)
+                    await self._voice.play_audio(call_sid, apology_audio)
                     continue
 
+                # STT: transcribe the audio
                 noise_retries = 0
-                conversation_history.append({"role": "user", "content": interlocutor_text})
-                log_lines.append(self._create_log_line(call_session.id, Speaker.INTERLOCUTOR, interlocutor_text))
+                interlocutor_text = await self._llm.transcribe(audio_bytes)
 
+                if not interlocutor_text.strip():
+                    noise_retries += 1
+                    if noise_retries >= MAX_RETRY_ON_NOISE:
+                        break
+                    continue
+
+                # Intent detection (NLU)
+                detected_intent = await self._llm.detect_intent(interlocutor_text)
+
+                conversation_history.append({"role": "user", "content": interlocutor_text})
+                log_lines.append(
+                    self._create_log_line(
+                        call_session.id, Speaker.INTERLOCUTOR, interlocutor_text, detected_intent
+                    )
+                )
+
+                # Handle refusal intent
+                if detected_intent == "rejection":
+                    farewell = "I understand. Thank you for your time. Goodbye. [OBJECTIVE_FAILED]"
+                    conversation_history.append({"role": "assistant", "content": farewell})
+                    log_lines.append(self._create_log_line(call_session.id, Speaker.AGENT, farewell))
+                    farewell_audio = await self._llm.synthesize(farewell)
+                    await self._voice.play_audio(call_sid, farewell_audio)
+                    break
+
+                # Generate AI response
                 agent_reply = await self._llm.generate_response(conversation_history, system_prompt)
                 conversation_history.append({"role": "assistant", "content": agent_reply})
                 log_lines.append(self._create_log_line(call_session.id, Speaker.AGENT, agent_reply))
 
+                # Synthesize and play response
+                reply_audio = await self._llm.synthesize(agent_reply)
+                await self._voice.play_audio(call_sid, reply_audio)
+
                 if self._is_conversation_complete(agent_reply):
                     break
 
+            # 5. End the call
             await self._voice.hangup(call_sid)
 
             call_session.duration = int((datetime.now() - call_session.start_time).total_seconds())
             call_session.recording_uri = await self._voice.get_recording_url(call_sid)
             await self.call_session_repository.update(call_session)
 
+            # 6. Generate summary
             summary = await self._generate_summary(conversation_history)
-            task.status = TaskStatus.COMPLETED
+            objective_achieved = any(
+                "[OBJECTIVE_ACHIEVED]" in msg.get("content", "")
+                for msg in conversation_history
+                if msg["role"] == "assistant"
+            )
+            task.status = TaskStatus.COMPLETED if objective_achieved else TaskStatus.FAILED
             task.summary = summary
+            if not objective_achieved:
+                task.error_reason = "Objective not achieved during conversation"
 
         except Exception as e:
             logger.error("Task %d failed: %s", task.id, str(e))
@@ -149,18 +197,11 @@ class CallManager:
 
         prompt += (
             "\nIMPORTANT: Be polite and natural. Confirm details before ending. "
-            "When the objective is achieved or clearly impossible, end the conversation politely. "
-            "Include [OBJECTIVE_ACHIEVED] or [OBJECTIVE_FAILED] in your final message."
+            "When the objective is achieved, end politely and include [OBJECTIVE_ACHIEVED] in your final message. "
+            "If the objective clearly cannot be achieved (refusal, unavailability), include [OBJECTIVE_FAILED]. "
+            "Keep responses concise (1-2 sentences) since this is a phone conversation."
         )
         return prompt
-
-    async def _simulate_listen(self, call_sid: str) -> str:
-        """Placeholder for real-time audio capture + STT.
-
-        In production, this would capture audio from the Twilio WebSocket stream
-        and pass it through STT. For now, this is a hook for the webhook-based flow.
-        """
-        return ""
 
     async def _generate_summary(self, conversation_history: list[dict[str, str]]) -> str:
         summary_prompt = (
@@ -182,12 +223,19 @@ class CallManager:
     def _is_conversation_complete(self, agent_reply: str) -> bool:
         return "[OBJECTIVE_ACHIEVED]" in agent_reply or "[OBJECTIVE_FAILED]" in agent_reply
 
-    def _create_log_line(self, session_id: int, speaker: Speaker, text: str) -> LogLine:
+    def _create_log_line(
+        self,
+        session_id: int,
+        speaker: Speaker,
+        text: str,
+        detected_intent: str | None = None,
+    ) -> LogLine:
         return LogLine(
             session_id=session_id,
             timestamp=datetime.now(),
             speaker=speaker,
             text=text,
+            detected_intent=detected_intent,
         )
 
     def _get_callback_base(self) -> str:

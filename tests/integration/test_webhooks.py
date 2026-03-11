@@ -106,3 +106,34 @@ async def test_twilio_recording_callback_no_session(client: AsyncClient) -> None
             data={"RecordingUrl": "https://example.com/rec.wav", "RecordingDuration": "30"},
         )
         assert response.status_code == 200  # gracefully handles missing session
+
+
+@pytest.mark.asyncio
+async def test_twilio_gather_callback(client: AsyncClient) -> None:
+    response = await client.post(
+        "/webhooks/calls/1/gather",
+        data={"SpeechResult": "Yes, March 20 please.", "Confidence": "0.95", "CallSid": "CA123"},
+    )
+    assert response.status_code == 200
+    assert "application/xml" in response.headers["content-type"]
+    assert "<Gather" in response.text
+
+
+@pytest.mark.asyncio
+async def test_twilio_gather_callback_empty_speech(client: AsyncClient) -> None:
+    response = await client.post(
+        "/webhooks/calls/1/gather",
+        data={"SpeechResult": "", "Confidence": "0", "CallSid": "CA123"},
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_twilio_call_callback_returns_gather_twiml(client: AsyncClient) -> None:
+    response = await client.post(
+        "/webhooks/calls/1",
+        data={"CallSid": "CA123", "CallStatus": "answered"},
+    )
+    assert response.status_code == 200
+    assert "<Gather" in response.text
+    assert 'input="speech"' in response.text

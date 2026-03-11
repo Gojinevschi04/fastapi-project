@@ -83,3 +83,75 @@ async def test_synthesize() -> None:
 
         assert result == b"fake audio bytes"
         mock_client.audio.speech.create.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_detect_intent() -> None:
+    with patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai, \
+         patch("app.integrations.openai_adapter.settings") as mock_settings:
+        mock_settings.OPENAI_API_KEY = "test-key"
+        mock_settings.OPENAI_MODEL = "gpt-4o"
+        mock_settings.OPENAI_TTS_MODEL = "tts-1"
+        mock_settings.OPENAI_TTS_VOICE = "alloy"
+        mock_settings.OPENAI_STT_MODEL = "whisper-1"
+
+        mock_client = MagicMock()
+        mock_openai.return_value = mock_client
+
+        mock_choice = MagicMock()
+        mock_choice.message.content = "confirmation"
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+
+        from app.integrations.openai_adapter import OpenAIAdapter
+
+        adapter = OpenAIAdapter()
+        result = await adapter.detect_intent("Yes, March 20 works for me.")
+
+        assert result == "confirmation"
+        mock_client.chat.completions.create.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_detect_intent_empty_text() -> None:
+    with patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai, \
+         patch("app.integrations.openai_adapter.settings") as mock_settings:
+        mock_settings.OPENAI_API_KEY = "test-key"
+        mock_settings.OPENAI_MODEL = "gpt-4o"
+        mock_settings.OPENAI_TTS_MODEL = "tts-1"
+        mock_settings.OPENAI_TTS_VOICE = "alloy"
+        mock_settings.OPENAI_STT_MODEL = "whisper-1"
+
+        mock_client = MagicMock()
+        mock_openai.return_value = mock_client
+
+        from app.integrations.openai_adapter import OpenAIAdapter
+
+        adapter = OpenAIAdapter()
+        result = await adapter.detect_intent("")
+
+        assert result is None
+        mock_client.chat.completions.create.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_detect_intent_api_failure() -> None:
+    with patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai, \
+         patch("app.integrations.openai_adapter.settings") as mock_settings:
+        mock_settings.OPENAI_API_KEY = "test-key"
+        mock_settings.OPENAI_MODEL = "gpt-4o"
+        mock_settings.OPENAI_TTS_MODEL = "tts-1"
+        mock_settings.OPENAI_TTS_VOICE = "alloy"
+        mock_settings.OPENAI_STT_MODEL = "whisper-1"
+
+        mock_client = MagicMock()
+        mock_openai.return_value = mock_client
+        mock_client.chat.completions.create = AsyncMock(side_effect=Exception("API error"))
+
+        from app.integrations.openai_adapter import OpenAIAdapter
+
+        adapter = OpenAIAdapter()
+        result = await adapter.detect_intent("Some text")
+
+        assert result is None  # Gracefully returns None on failure

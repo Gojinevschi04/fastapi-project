@@ -72,3 +72,13 @@ class CallService:
             raise CallSessionNotFoundError(f"No call session found for task {task_id}")
 
         return call_session
+
+    async def get_recording_audio(self, task_id: int, user_id: int) -> bytes:
+        session = await self.get_session_by_task(task_id, user_id)
+        if not session.recording_uri:
+            raise ValueError(f"No recording available for task {task_id}")
+
+        from app.integrations.twilio_adapter import TwilioAdapter
+
+        adapter = TwilioAdapter()
+        return await adapter.get_recording_audio(session.recording_uri)
