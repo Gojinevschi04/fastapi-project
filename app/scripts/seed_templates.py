@@ -8,7 +8,7 @@ from app.modules.templates.models import DialogTemplate
 
 TEMPLATES = [
     {
-        "name": "Make Appointment",
+        "name": "Make appointment",
         "base_script": (
             "Call the provided phone number and request an appointment. "
             "Introduce yourself as calling on behalf of the user. "
@@ -20,7 +20,7 @@ TEMPLATES = [
         "required_slots": ["preferred_date", "preferred_time", "service_type", "patient_name"],
     },
     {
-        "name": "Confirm Reservation",
+        "name": "Confirm reservation",
         "base_script": (
             "Call to confirm an existing reservation. "
             "Provide the reservation ID and guest name. "
@@ -31,7 +31,7 @@ TEMPLATES = [
         "required_slots": ["reservation_id", "reservation_date", "guest_name"],
     },
     {
-        "name": "Request Information",
+        "name": "Request information",
         "base_script": (
             "Call the business and ask about the specified topic. "
             "Be specific about what information is needed. "
@@ -42,7 +42,7 @@ TEMPLATES = [
         "required_slots": ["question_topic", "business_name"],
     },
     {
-        "name": "Cancel Appointment",
+        "name": "Cancel appointment",
         "base_script": (
             "Call to cancel a previously scheduled appointment. "
             "Provide the appointment date, time, and the name it was booked under. "
@@ -53,7 +53,7 @@ TEMPLATES = [
         "required_slots": ["appointment_date", "appointment_time", "booked_name", "reason"],
     },
     {
-        "name": "Follow-up Call",
+        "name": "Follow-up call",
         "base_script": (
             "Call to follow up on a previous interaction. "
             "Reference the previous contact using the reference number. "
