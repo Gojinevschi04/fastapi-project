@@ -55,7 +55,10 @@ make db.up       # starts Docker container + runs migrations
 # 2. Seed templates (first time only)
 make db.seed
 
-# 3. Start the server
+# 3. (Optional) Seed demo users + tasks for testing
+make db.seed.demo
+
+# 4. Start the server
 make app.start   # runs on http://localhost:8000
 ```
 
@@ -69,6 +72,7 @@ make db.up                              # Start PostgreSQL + run migrations
 make db.down                            # Rollback all migrations
 make db.make_migrations m='description' # Generate new Alembic migration
 make db.seed                            # Seed dialog templates
+make db.seed.demo                       # Seed demo users + tasks
 
 # Code quality
 make black.run    # Format code with Black

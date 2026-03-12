@@ -1,4 +1,4 @@
-.PHONY: help db.make_migrations db.up db.down black.run ruff.run mypy.run app.start app.stop
+.PHONY: help db.make_migrations db.up db.down db.seed db.seed.demo black.run ruff.run mypy.run app.start app.stop
 
 .DEFAULT_GOAL := help
 
@@ -11,6 +11,8 @@ help:
 	@echo "                        Example: make db.make_migrations m='Add user table'"
 	@echo "  db.up                 Run all pending migrations"
 	@echo "  db.down               Rollback all migrations to base"
+	@echo "  db.seed               Seed dialog templates"
+	@echo "  db.seed.demo          Seed demo users + tasks (for testing)"
 	@echo ""
 	@echo "Code Quality Commands:"
 	@echo "  black.run             Format Python code with Black"
@@ -38,6 +40,10 @@ db.down:
 
 db.seed:
 	@poetry run python -m app.scripts.seed_templates
+
+db.seed.demo:
+	@poetry run python -m app.scripts.seed_templates
+	@poetry run python -m app.scripts.seed_demo
 
 
 black.run:
