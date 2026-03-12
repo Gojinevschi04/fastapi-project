@@ -1,8 +1,9 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
-from app.modules.templates.exceptions import TemplateNameExistsError, TemplateNotFoundError
+from app.modules.templates.exceptions import TemplateInUseError, TemplateNameExistsError, TemplateNotFoundError
 from app.modules.templates.models import DialogTemplate
 from app.modules.templates.repository import TemplateRepository
 from app.modules.templates.schema import TemplateCreate, TemplateUpdate
@@ -115,3 +116,33 @@ async def test_delete_template_not_found() -> None:
 
     with pytest.raises(TemplateNotFoundError):
         await service.delete_template(999)
+
+
+@pytest.mark.asyncio
+async def test_delete_template_in_use(mock_template: DialogTemplate) -> None:
+    mock_repo = MagicMock(spec=TemplateRepository)
+    mock_repo.get_by_id = AsyncMock(return_value=mock_template)
+    mock_repo.delete = AsyncMock(
+        side_effect=IntegrityError("FK violation", params=None, orig=Exception())
+    )
+
+    service = TemplateService(template_repository=mock_repo)
+
+    with pytest.raises(TemplateInUseError):
+        await service.delete_template(1)
+
+
+@pytest.mark.asyncio
+async def test_update_template_duplicate_name(mock_template: DialogTemplate) -> None:
+    existing_other = MagicMock(spec=DialogTemplate)
+    existing_other.id = 2
+
+    mock_repo = MagicMock(spec=TemplateRepository)
+    mock_repo.get_by_id = AsyncMock(return_value=mock_template)
+    mock_repo.get_by_name = AsyncMock(return_value=existing_other)
+
+    service = TemplateService(template_repository=mock_repo)
+    data = TemplateUpdate(name="Taken Name")
+
+    with pytest.raises(TemplateNameExistsError):
+        await service.update_template(1, data)

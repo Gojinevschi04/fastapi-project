@@ -125,3 +125,45 @@ async def test_get_stats() -> None:
     assert stats.completed == 5
     assert stats.failed == 1
     assert stats.in_progress == 0
+
+
+@pytest.mark.asyncio
+async def test_get_stats_empty() -> None:
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.count_by_status = AsyncMock(return_value={})
+    mock_template_repo = MagicMock(spec=TemplateRepository)
+
+    service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
+    stats = await service.get_stats(user_id=1)
+
+    assert stats.total == 0
+    assert stats.pending == 0
+    assert stats.completed == 0
+    assert stats.failed == 0
+    assert stats.in_progress == 0
+    assert stats.scheduled == 0
+
+
+@pytest.mark.asyncio
+async def test_cancel_task_not_found() -> None:
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=None)
+    mock_template_repo = MagicMock(spec=TemplateRepository)
+
+    service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
+
+    with pytest.raises(TaskNotFoundError):
+        await service.cancel_task(999, user_id=1)
+
+
+@pytest.mark.asyncio
+async def test_cancel_completed_task(mock_task: Task) -> None:
+    mock_task.status = TaskStatus.COMPLETED
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=mock_task)
+    mock_template_repo = MagicMock(spec=TemplateRepository)
+
+    service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
+
+    with pytest.raises(TaskNotCancellableError):
+        await service.cancel_task(1, user_id=1)

@@ -87,3 +87,23 @@ async def test_get_call_session_not_found(authenticated_client: AsyncClient) -> 
         mock_get.side_effect = TaskNotFoundError("Not found")
         response = await authenticated_client.get("/tasks/999/session")
         assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_call_session_no_session(authenticated_client: AsyncClient) -> None:
+    with patch("app.modules.calls.service.CallService.get_session_by_task") as mock_get:
+        mock_get.side_effect = CallSessionNotFoundError("No session")
+        response = await authenticated_client.get("/tasks/1/session")
+        assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_transcript_unauthenticated(client: AsyncClient) -> None:
+    response = await client.get("/tasks/1/transcript")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_get_call_session_unauthenticated(client: AsyncClient) -> None:
+    response = await client.get("/tasks/1/session")
+    assert response.status_code == 401

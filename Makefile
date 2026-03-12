@@ -50,16 +50,16 @@ mypy.run:
 	@poetry run mypy app
 
 app.start:
-	@docker network inspect external_network >nul 2>&1 || docker network create external_network
-	@docker-compose up -d
-	@echo "Starting API server in background..."
+	@docker network inspect external_network >/dev/null 2>&1 || docker network create external_network
+	@docker compose up -d
+	@echo "Running migrations..."
 	@make db.up
-	@poetry run python -m app.main &
+	@echo "Starting API server on http://localhost:8000 ..."
+	@poetry run python -m app.main
 
 app.stop:
-	@echo Stopping Docker containers...
-	-@for /f %%i in ('docker ps -aq') do docker stop %%i
-	-@for /f %%i in ('docker ps -aq') do docker rm %%i
-	@echo Stopping API server...
-	-@taskkill /F /IM python.exe >nul 2>&1
-	@echo All processes stopped.
+	@echo "Stopping Docker containers..."
+	-@docker compose down
+	@echo "Stopping API server..."
+	-@pkill -f "uvicorn app.main:app" 2>/dev/null || true
+	@echo "All processes stopped."

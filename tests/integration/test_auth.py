@@ -175,3 +175,24 @@ async def test_change_password_wrong_current(authenticated_client: AsyncClient) 
             json={"current_password": "wrongpass", "new_password": "newpass123"},
         )
         assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_get_profile_unauthenticated(client: AsyncClient) -> None:
+    response = await client.get("/users/me")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_update_profile_unauthenticated(client: AsyncClient) -> None:
+    response = await client.put("/users/me", json={"phone_number": "+37399999999"})
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_change_password_unauthenticated(client: AsyncClient) -> None:
+    response = await client.post(
+        "/users/me/change-password",
+        json={"current_password": "old", "new_password": "new123"},
+    )
+    assert response.status_code == 401

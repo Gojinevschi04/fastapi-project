@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from httpx import AsyncClient
 
-from app.modules.templates.exceptions import TemplateNameExistsError, TemplateNotFoundError
+from app.modules.templates.exceptions import TemplateInUseError, TemplateNameExistsError, TemplateNotFoundError
 
 
 @pytest.mark.asyncio
@@ -103,3 +103,38 @@ async def test_delete_template(admin_client: AsyncClient) -> None:
         response = await admin_client.delete("/templates/1")
         assert response.status_code == 200
         assert response.json()["message"] == "Template deleted successfully"
+
+
+@pytest.mark.asyncio
+async def test_delete_template_in_use(admin_client: AsyncClient) -> None:
+    with patch("app.modules.templates.service.TemplateService.delete_template") as mock_delete:
+        mock_delete.side_effect = TemplateInUseError("Template is used by tasks")
+        response = await admin_client.delete("/templates/1")
+        assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_create_template_non_admin_forbidden(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.post(
+        "/templates/",
+        json={"name": "Test", "base_script": "Hello", "required_slots": []},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_update_template_non_admin_forbidden(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.put("/templates/1", json={"name": "Updated"})
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_delete_template_non_admin_forbidden(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.delete("/templates/1")
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_templates_unauthenticated(client: AsyncClient) -> None:
+    response = await client.get("/templates/")
+    assert response.status_code == 401

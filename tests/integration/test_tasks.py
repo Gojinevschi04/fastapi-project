@@ -163,3 +163,24 @@ async def test_execute_task_not_found(authenticated_client: AsyncClient) -> None
         mock_execute.side_effect = ValueError("Task 999 not found")
         response = await authenticated_client.post("/tasks/999/execute")
         assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_tasks_unauthenticated(client: AsyncClient) -> None:
+    response = await client.get("/tasks/")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_create_task_unauthenticated(client: AsyncClient) -> None:
+    response = await client.post(
+        "/tasks/",
+        json={"target_phone": "+37312345678", "template_id": 1, "slot_data": {}},
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_get_task_stats_unauthenticated(client: AsyncClient) -> None:
+    response = await client.get("/tasks/stats")
+    assert response.status_code == 401
