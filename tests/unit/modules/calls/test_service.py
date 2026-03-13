@@ -105,3 +105,21 @@ async def test_get_session_by_task_not_found() -> None:
 
     with pytest.raises(TaskNotFoundError):
         await service.get_session_by_task(task_id=999, user_id=1)
+
+
+@pytest.mark.asyncio
+async def test_get_session_by_task_no_session(mock_task: Task) -> None:
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=mock_task)
+    mock_session_repo = MagicMock(spec=CallSessionRepository)
+    mock_session_repo.get_by_task_id = AsyncMock(return_value=None)
+    mock_log_repo = MagicMock(spec=LogLineRepository)
+
+    service = CallService(
+        call_session_repository=mock_session_repo,
+        log_line_repository=mock_log_repo,
+        task_repository=mock_task_repo,
+    )
+
+    with pytest.raises(CallSessionNotFoundError):
+        await service.get_session_by_task(task_id=1, user_id=1)

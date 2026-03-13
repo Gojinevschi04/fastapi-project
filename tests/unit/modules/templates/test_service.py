@@ -133,6 +133,35 @@ async def test_delete_template_in_use(mock_template: DialogTemplate) -> None:
 
 
 @pytest.mark.asyncio
+async def test_update_template_only_base_script(mock_template: DialogTemplate) -> None:
+    mock_repo = MagicMock(spec=TemplateRepository)
+    mock_repo.get_by_id = AsyncMock(return_value=mock_template)
+    mock_repo.update = AsyncMock(return_value=mock_template)
+
+    service = TemplateService(template_repository=mock_repo)
+    data = TemplateUpdate(base_script="Updated script content")
+    result = await service.update_template(1, data)
+
+    assert result == mock_template
+    assert mock_template.base_script == "Updated script content"
+    mock_repo.get_by_name.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_template_only_slots(mock_template: DialogTemplate) -> None:
+    mock_repo = MagicMock(spec=TemplateRepository)
+    mock_repo.get_by_id = AsyncMock(return_value=mock_template)
+    mock_repo.update = AsyncMock(return_value=mock_template)
+
+    service = TemplateService(template_repository=mock_repo)
+    data = TemplateUpdate(required_slots=["new_slot"])
+    result = await service.update_template(1, data)
+
+    assert result == mock_template
+    assert mock_template.required_slots == ["new_slot"]
+
+
+@pytest.mark.asyncio
 async def test_update_template_duplicate_name(mock_template: DialogTemplate) -> None:
     existing_other = MagicMock(spec=DialogTemplate)
     existing_other.id = 2
