@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.schema import MessageResponse
-from app.modules.users.middleware import get_current_user
+from app.modules.users.middleware import get_current_admin_user, get_current_user
 from app.modules.users.models import User
 from app.modules.users.schema import (
     ChangePassword,
@@ -55,7 +55,7 @@ async def change_password_view(
 async def create_user(
     user_data: UserCreate,
     user_service: Annotated[UserService, Depends(UserService)],
-    _current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> UserResponse:
     try:
         return await user_service.create_user(user_data)
@@ -66,7 +66,7 @@ async def create_user(
 @router.get("/", response_model=UserListResponse)
 async def get_users(
     user_service: Annotated[UserService, Depends(UserService)],
-    _current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_admin_user)],
     skip: int = 0,
     limit: int = 100,
 ) -> UserListResponse:
@@ -77,7 +77,7 @@ async def get_users(
 async def get_user(
     user_id: int,
     user_service: Annotated[UserService, Depends(UserService)],
-    _current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> UserResponse:
     user = await user_service.get_user(user_id)
     if not user:
@@ -90,7 +90,7 @@ async def update_user(
     user_id: int,
     user_data: UserUpdate,
     user_service: Annotated[UserService, Depends(UserService)],
-    _current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> UserResponse:
     try:
         user = await user_service.update_user(user_id, user_data)
@@ -105,7 +105,7 @@ async def update_user(
 async def delete_user(
     user_id: int,
     user_service: Annotated[UserService, Depends(UserService)],
-    _current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> MessageResponse:
     success = await user_service.delete_user(user_id)
     if not success:

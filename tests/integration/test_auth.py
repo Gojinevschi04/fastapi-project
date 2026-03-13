@@ -7,7 +7,7 @@ from app.modules.users.schema import UserCreate, UserListResponse, UserResponse,
 
 
 @pytest.mark.asyncio
-async def test_create_user(authenticated_client: AsyncClient) -> None:
+async def test_create_user(admin_client: AsyncClient) -> None:
     with patch("app.modules.users.service.UserService.create_user") as mock_create:
         mock_user_response = UserResponse(
             id=3,
@@ -19,7 +19,7 @@ async def test_create_user(authenticated_client: AsyncClient) -> None:
         mock_create.return_value = mock_user_response
 
         user_data = UserCreate(email="newuser@example.com", role=UserRole.USER, password="testpass123")
-        response = await authenticated_client.post("/users/", json=user_data.model_dump())
+        response = await admin_client.post("/users/", json=user_data.model_dump())
         assert response.status_code == 200
         data = response.json()
         assert "id" in data

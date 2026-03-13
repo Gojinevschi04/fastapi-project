@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlmodel import select
+from sqlmodel import func, select
 
 from app.core.repositories import Repository
 from app.modules.calls.models import CallSession, LogLine
@@ -21,6 +21,10 @@ class CallSessionRepository(Repository):
         await self._session.commit()
         await self._session.refresh(session)
         return session
+
+    async def count_total(self) -> int:
+        result = await self._session.exec(select(func.count()).select_from(CallSession))
+        return result.one()
 
 
 class LogLineRepository(Repository):

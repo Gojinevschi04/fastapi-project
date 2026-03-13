@@ -55,3 +55,16 @@ class TaskRepository(Repository):
         for status, count in result.all():
             counts[status] = count
         return counts
+
+    async def count_by_status_all(self) -> dict[str, int]:
+        result = await self._session.exec(
+            select(Task.status, func.count()).group_by(Task.status)
+        )
+        counts: dict[str, int] = {}
+        for status, count in result.all():
+            counts[status] = count
+        return counts
+
+    async def count_total(self) -> int:
+        result = await self._session.exec(select(func.count()).select_from(Task))
+        return result.one()

@@ -2,7 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.modules.auth.schema import LoginRequest, RefreshRequest, RegisterRequest, TokenResponse
+from app.core.schema import MessageResponse
+from app.modules.auth.schema import LoginRequest, PasswordResetRequest, RefreshRequest, RegisterRequest, TokenResponse
 from app.modules.auth.service import AuthService
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
@@ -40,3 +41,16 @@ async def refresh(
     data: RefreshRequest,
 ) -> TokenResponse:
     return AuthService.refresh_access_token(data.refresh_token)
+
+
+@router.post("/reset-password")
+async def reset_password(
+    data: PasswordResetRequest,
+    user_repository: Annotated[UserRepository, Depends(UserRepository)],
+) -> MessageResponse:
+    # Always return success to not reveal if email exists (security best practice)
+    user = await user_repository.get_by_email(data.email)
+    if user:
+        # TODO: Send actual reset email with token when email service is configured
+        pass
+    return MessageResponse(message="If an account with that email exists, a reset link has been sent")

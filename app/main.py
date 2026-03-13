@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+from app.modules.admin.views import router as admin_router
 from app.modules.auth.views import router as auth_router
 from app.modules.calls.views import router as calls_router
 from app.modules.files.views import router as files_router
@@ -26,6 +27,7 @@ def get_application() -> FastAPI:
     app.include_router(templates_router)
     app.include_router(tasks_router)
     app.include_router(calls_router)
+    app.include_router(admin_router)
 
     return app
 
