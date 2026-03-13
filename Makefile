@@ -1,4 +1,4 @@
-.PHONY: help db.make_migrations db.up db.down db.seed db.seed.demo black.run ruff.run mypy.run app.start app.stop
+.PHONY: help db.make_migrations db.up db.down db.seed db.seed.demo black.run ruff.run mypy.run app.start app.stop app.logs app.logs.api app.logs.worker
 
 .DEFAULT_GOAL := help
 
@@ -20,8 +20,11 @@ help:
 	@echo "  mypy.run              Type check code with MyPy"
 	@echo ""
 	@echo "Application Commands:"
-	@echo "  app.start             Start Docker containers, API server"
-	@echo "  app.stop              Stop all Docker containers and running processes"
+	@echo "  app.start             Build and start all containers (API, worker, Postgres)"
+	@echo "  app.stop              Stop and remove all containers"
+	@echo "  app.logs              Follow logs from all containers"
+	@echo "  app.logs.api          Follow logs from voice_api only"
+	@echo "  app.logs.worker       Follow logs from voice_worker only"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make db.up                                    # Run migrations"
@@ -56,16 +59,23 @@ mypy.run:
 	@poetry run mypy app
 
 app.start:
-	@docker network inspect external_network >/dev/null 2>&1 || docker network create external_network
-	@docker compose up -d
-	@echo "Running migrations..."
-	@make db.up
-	@echo "Starting API server on http://localhost:8000 ..."
-	@poetry run python -m app.main
+	@echo "Building and starting all containers..."
+	@docker compose up --build -d
+	@echo "Quiet Call AI is running:"
+	@echo "  API:      http://localhost:8000"
+	@echo "  Docs:     http://localhost:8000/docs"
+	@echo "  Postgres: localhost:5432"
 
 app.stop:
-	@echo "Stopping Docker containers..."
-	-@docker compose down
-	@echo "Stopping API server..."
-	-@pkill -f "uvicorn app.main:app" 2>/dev/null || true
-	@echo "All processes stopped."
+	@echo "Stopping all containers..."
+	@docker compose down
+	@echo "All containers stopped."
+
+app.logs:
+	@docker compose logs -f
+
+app.logs.api:
+	@docker compose logs -f voice_api
+
+app.logs.worker:
+	@docker compose logs -f voice_worker
