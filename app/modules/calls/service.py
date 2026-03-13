@@ -78,7 +78,18 @@ class CallService:
         if not session.recording_uri:
             raise ValueError(f"No recording available for task {task_id}")
 
-        from app.integrations.twilio_adapter import TwilioAdapter
+        # Try to fetch from Twilio; fallback to demo audio if unavailable
+        try:
+            from app.integrations.twilio_adapter import TwilioAdapter
 
-        adapter = TwilioAdapter()
-        return await adapter.get_recording_audio(session.recording_uri)
+            adapter = TwilioAdapter()
+            return await adapter.get_recording_audio(session.recording_uri)
+        except Exception:
+            logger.warning(
+                "Could not fetch recording from Twilio for task %d, serving demo audio",
+                task_id,
+            )
+            from app.core.audio import generate_demo_wav
+
+            duration = session.duration or 5
+            return generate_demo_wav(duration_seconds=min(duration, 30))

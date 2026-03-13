@@ -57,8 +57,12 @@ async def download_recording_view(
     task_id: int,
     call_service: Annotated[CallService, Depends(CallService)],
     current_user: Annotated[User, Depends(get_current_user)],
+    download: bool = False,
 ) -> StreamingResponse:
-    """Download the call recording as a WAV audio file."""
+    """Stream or download the call recording as a WAV audio file.
+
+    Use ?download=true to force download instead of inline playback.
+    """
     try:
         audio_bytes = await call_service.get_recording_audio(task_id, current_user.id)
     except TaskNotFoundError as e:
@@ -70,8 +74,14 @@ async def download_recording_view(
 
     import io
 
+    headers = {}
+    if download:
+        headers["Content-Disposition"] = f"attachment; filename=recording_task_{task_id}.wav"
+    else:
+        headers["Content-Disposition"] = f"inline; filename=recording_task_{task_id}.wav"
+
     return StreamingResponse(
         io.BytesIO(audio_bytes),
         media_type="audio/wav",
-        headers={"Content-Disposition": f"attachment; filename=recording_task_{task_id}.wav"},
+        headers=headers,
     )

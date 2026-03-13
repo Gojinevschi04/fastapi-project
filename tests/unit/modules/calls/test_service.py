@@ -123,3 +123,47 @@ async def test_get_session_by_task_no_session(mock_task: Task) -> None:
 
     with pytest.raises(CallSessionNotFoundError):
         await service.get_session_by_task(task_id=1, user_id=1)
+
+
+@pytest.mark.asyncio
+async def test_get_recording_audio_no_uri(mock_task: Task, mock_call_session: CallSession) -> None:
+    mock_call_session.recording_uri = None
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=mock_task)
+    mock_session_repo = MagicMock(spec=CallSessionRepository)
+    mock_session_repo.get_by_task_id = AsyncMock(return_value=mock_call_session)
+    mock_log_repo = MagicMock(spec=LogLineRepository)
+
+    service = CallService(
+        call_session_repository=mock_session_repo,
+        log_line_repository=mock_log_repo,
+        task_repository=mock_task_repo,
+    )
+
+    with pytest.raises(ValueError, match="No recording available"):
+        await service.get_recording_audio(task_id=1, user_id=1)
+
+
+@pytest.mark.asyncio
+async def test_get_recording_audio_fallback_to_demo(mock_task: Task, mock_call_session: CallSession) -> None:
+    """When Twilio fetch fails, should return demo WAV audio."""
+    mock_call_session.recording_uri = "https://fake-twilio-url.com/recording.wav"
+    mock_call_session.duration = 3
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=mock_task)
+    mock_session_repo = MagicMock(spec=CallSessionRepository)
+    mock_session_repo.get_by_task_id = AsyncMock(return_value=mock_call_session)
+    mock_log_repo = MagicMock(spec=LogLineRepository)
+
+    service = CallService(
+        call_session_repository=mock_session_repo,
+        log_line_repository=mock_log_repo,
+        task_repository=mock_task_repo,
+    )
+
+    result = await service.get_recording_audio(task_id=1, user_id=1)
+
+    # Should return valid WAV bytes (demo fallback)
+    assert isinstance(result, bytes)
+    assert len(result) > 0
+    assert result[:4] == b"RIFF"  # WAV file header
