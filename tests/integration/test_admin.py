@@ -76,3 +76,10 @@ async def test_get_users_non_admin_forbidden(authenticated_client: AsyncClient) 
 async def test_delete_user_non_admin_forbidden(authenticated_client: AsyncClient) -> None:
     response = await authenticated_client.delete("/users/1")
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_self_deletion_prevented(admin_client: AsyncClient) -> None:
+    response = await admin_client.delete("/users/2")  # admin_client user has id=2
+    assert response.status_code == 400
+    assert "Cannot delete your own account" in response.json()["detail"]

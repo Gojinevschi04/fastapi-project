@@ -62,7 +62,11 @@ async def twilio_status_callback(
     if CallStatus == "completed":
         call_session = await call_session_repository.get_by_task_id(task_id)
         if call_session and not call_session.duration:
-            call_session.duration = int(CallDuration) if CallDuration else 0
+            try:
+                call_session.duration = int(CallDuration) if CallDuration else 0
+            except (ValueError, TypeError):
+                call_session.duration = 0
+                logger.warning("Malformed CallDuration for task %d: %s", task_id, CallDuration)
             await call_session_repository.update(call_session)
             logger.info("Updated call session duration for task %d: %ss", task_id, CallDuration)
 

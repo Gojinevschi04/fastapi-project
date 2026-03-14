@@ -184,3 +184,12 @@ async def test_create_task_unauthenticated(client: AsyncClient) -> None:
 async def test_get_task_stats_unauthenticated(client: AsyncClient) -> None:
     response = await client.get("/tasks/stats")
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_execute_completed_task(authenticated_client: AsyncClient) -> None:
+    with patch("app.integrations.call_manager.CallManager.execute_task") as mock_execute:
+        mock_execute.side_effect = ValueError("Task 1 cannot be executed (status: completed)")
+        response = await authenticated_client.post("/tasks/1/execute")
+        assert response.status_code == 404
+        assert "cannot be executed" in response.json()["detail"]

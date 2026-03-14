@@ -51,6 +51,9 @@ class CallManager:
         if not task:
             raise ValueError(f"Task {task_id} not found")
 
+        if task.status not in (TaskStatus.PENDING, TaskStatus.SCHEDULED):
+            raise ValueError(f"Task {task_id} cannot be executed (status: {task.status})")
+
         template = await self.template_repository.get_by_id(task.template_id)
         if not template:
             raise ValueError(f"Template {task.template_id} not found")

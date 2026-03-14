@@ -105,8 +105,10 @@ async def update_user(
 async def delete_user(
     user_id: int,
     user_service: Annotated[UserService, Depends(UserService)],
-    _current_user: Annotated[User, Depends(get_current_admin_user)],
+    current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> MessageResponse:
+    if user_id == current_user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own account")
     success = await user_service.delete_user(user_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")

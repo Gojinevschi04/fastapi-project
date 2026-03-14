@@ -29,6 +29,13 @@ class TaskBase(BaseModel):
             raise ValueError("Invalid phone number format. Expected: +XXXXXXXXXXX")
         return v
 
+    @field_validator("scheduled_time")
+    @classmethod
+    def validate_scheduled_time(cls, v: datetime | None) -> datetime | None:
+        if v is not None and v <= datetime.now():
+            raise ValueError("Scheduled time must be in the future")
+        return v
+
 
 class TaskCreate(TaskBase):
     pass
