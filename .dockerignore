@@ -11,4 +11,3 @@ storage/
 *.egg-info
 .idea
 .vscode
-tests/

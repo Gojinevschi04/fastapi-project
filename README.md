@@ -46,29 +46,55 @@ poetry install
 cp .env.example .env
 ```
 
-### Start the Application
+### Start with Docker (recommended)
 
 ```bash
-# 1. Start PostgreSQL
-make db.up       # starts Docker container + runs migrations
+# Start everything (Postgres + API + Worker)
+make app.start
 
-# 2. Seed templates (first time only)
+# Seed templates (first time only)
 make db.seed
 
-# 3. (Optional) Seed demo users + tasks for testing
+# (Optional) Seed demo users + tasks for testing
 make db.seed.demo
-
-# 4. Start the server
-make app.start   # runs on http://localhost:8000
 ```
 
-The API docs are available at `http://localhost:8000/docs` (Swagger UI).
+This starts 3 containers:
+- **qc_api** — FastAPI server at `http://localhost:8000`
+- **qc_worker** — Background task scheduler
+- **qc_postgres** — PostgreSQL database
+
+API docs: `http://localhost:8000/docs`
+
+### Start locally (without Docker)
+
+```bash
+# Start PostgreSQL container only
+docker compose up qc_postgres -d
+
+# Run migrations
+make db.up
+
+# Start the server
+poetry run python -m app.main
+
+# (In another terminal) Start the worker
+poetry run python -m app.worker
+```
 
 ### Common Commands
 
 ```bash
+# Docker
+make app.start              # Build and start all containers
+make app.stop               # Stop all containers
+make app.logs               # Follow logs from all containers
+make app.logs.api           # Follow API logs only
+make app.logs.worker        # Follow worker logs only
+make app.test               # Run tests in Docker container
+
 # Database
-make db.up                              # Start PostgreSQL + run migrations
+make db.up                              # Run migrations
 make db.down                            # Rollback all migrations
 make db.make_migrations m='description' # Generate new Alembic migration
 make db.seed                            # Seed dialog templates
@@ -80,13 +106,9 @@ make ruff.run     # Lint + format with Ruff
 make mypy.run     # Type checking
 
 # Tests
-pytest                     # Run all tests
+pytest                     # Run all 313 tests
 pytest tests/unit/         # Unit tests only
 pytest tests/integration/  # Integration tests only
-
-# Server
-make app.start    # Start Docker + migrations + server
-make app.stop     # Stop everything
 ```
 
 ---
@@ -210,6 +232,8 @@ Each module in `app/modules/` follows this layered pattern:
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | Email (SMTP) |
 | `EMAIL_FROM`, `EMAIL_FROM_NAME`, `EMAIL_ENABLED` | Email sender config |
 | `BASE_URL` | Backend base URL |
+| `CORS_ORIGINS` | Allowed CORS origins (comma-separated) |
+| `RATE_LIMIT_PER_MINUTE` | API rate limit per IP (default: 60) |
 | `LOG_LEVEL` | Logging level (default: INFO) |
 
 See `.env.example` for defaults.
@@ -218,8 +242,41 @@ See `.env.example` for defaults.
 
 ## Connecting with the Frontend
 
-1. Start this backend on `http://localhost:8000`
-2. In the frontend repo, set `VITE_API_URL=http://localhost:8000` in `.env`
-3. Start the frontend with `npm run dev` — it runs on `http://localhost:5173`
+**With Docker:**
+```bash
+# Backend (this repo)
+make app.start
+
+# Frontend (quiet-call-ai-frontend repo)
+make docker.start    # runs at http://localhost:3000
+```
+
+**Local development:**
+```bash
+# Backend
+make app.start       # or: poetry run python -m app.main
+
+# Frontend
+npm run dev          # runs at http://localhost:5173
+```
 
 The frontend communicates with all endpoints listed above via Axios with JWT Bearer authentication.
+
+---
+
+## Docker Architecture
+
+```
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│  qc_frontend │  │   qc_api     │  │  qc_worker   │
+│  (nginx:80)  │  │ (uvicorn:8K) │  │ (scheduler)  │
+│  port 3000   │  │  port 8000   │  │  background   │
+└──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+       │                 │                  │
+       └────────┬────────┴──────────────────┘
+                │
+        ┌───────▼───────┐
+        │  qc_postgres  │
+        │  (port 5432)  │
+        └───────────────┘
+```

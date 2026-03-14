@@ -1,4 +1,4 @@
-.PHONY: help db.make_migrations db.up db.down db.seed db.seed.demo black.run ruff.run mypy.run app.start app.stop app.logs app.logs.api app.logs.worker
+.PHONY: help db.make_migrations db.up db.down db.seed db.seed.demo black.run ruff.run mypy.run app.start app.stop app.logs app.logs.api app.logs.worker app.test
 
 .DEFAULT_GOAL := help
 
@@ -23,8 +23,9 @@ help:
 	@echo "  app.start             Build and start all containers (API, worker, Postgres)"
 	@echo "  app.stop              Stop and remove all containers"
 	@echo "  app.logs              Follow logs from all containers"
-	@echo "  app.logs.api          Follow logs from voice_api only"
-	@echo "  app.logs.worker       Follow logs from voice_worker only"
+	@echo "  app.logs.api          Follow logs from qc_api only"
+	@echo "  app.logs.worker       Follow logs from qc_worker only"
+	@echo "  app.test              Run tests in Docker container"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make db.up                                    # Run migrations"
@@ -75,7 +76,11 @@ app.logs:
 	@docker compose logs -f
 
 app.logs.api:
-	@docker compose logs -f voice_api
+	@docker compose logs -f qc_api
 
 app.logs.worker:
-	@docker compose logs -f voice_worker
+	@docker compose logs -f qc_worker
+
+app.test:
+	@echo "Running tests in Docker..."
+	@docker compose --profile test up --build qc_test --abort-on-container-exit --exit-code-from qc_test
