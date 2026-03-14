@@ -113,3 +113,30 @@ async def test_delete_file_not_found(admin_client: AsyncClient) -> None:
 
         response = await admin_client.delete("/files/99999")
         assert response.status_code == 400
+
+
+# --- Unauthenticated access ---
+
+
+@pytest.mark.asyncio
+async def test_upload_file_unauthenticated(client: AsyncClient) -> None:
+    response = await client.post("/files/upload")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_get_files_unauthenticated(client: AsyncClient) -> None:
+    response = await client.get("/files/")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_download_file_unauthenticated(client: AsyncClient) -> None:
+    response = await client.get("/files/1/download")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_delete_file_unauthenticated(client: AsyncClient) -> None:
+    response = await client.delete("/files/1")
+    assert response.status_code == 401
