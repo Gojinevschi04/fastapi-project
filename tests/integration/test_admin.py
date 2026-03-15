@@ -248,3 +248,42 @@ async def test_admin_self_deletion_prevented(admin_client: AsyncClient) -> None:
     response = await admin_client.delete("/users/2")
     assert response.status_code == 400
     assert "Cannot delete your own account" in response.json()["detail"]
+
+
+# --- Validation edge cases ---
+
+
+@pytest.mark.asyncio
+async def test_update_user_role_invalid_value(admin_client: AsyncClient) -> None:
+    response = await admin_client.put("/admin/users/1", json={"role": "superadmin"})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_admin_users_invalid_limit(admin_client: AsyncClient) -> None:
+    response = await admin_client.get("/admin/users?limit=0")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_admin_tasks_invalid_limit(admin_client: AsyncClient) -> None:
+    response = await admin_client.get("/admin/tasks?limit=101")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_admin_tasks_unauthenticated(client: AsyncClient) -> None:
+    response = await client.get("/admin/tasks")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_delete_admin_user_unauthenticated(client: AsyncClient) -> None:
+    response = await client.delete("/admin/users/1")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_update_user_role_unauthenticated(client: AsyncClient) -> None:
+    response = await client.put("/admin/users/1", json={"role": "admin"})
+    assert response.status_code == 401

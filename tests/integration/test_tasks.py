@@ -193,3 +193,41 @@ async def test_execute_completed_task(authenticated_client: AsyncClient) -> None
         response = await authenticated_client.post("/tasks/1/execute")
         assert response.status_code == 404
         assert "cannot be executed" in response.json()["detail"]
+
+
+# --- Validation edge cases ---
+
+
+@pytest.mark.asyncio
+async def test_create_task_invalid_phone(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.post(
+        "/tasks/",
+        json={"target_phone": "123", "template_id": 1, "slot_data": {}},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_task_missing_fields(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.post("/tasks/", json={})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_tasks_invalid_limit(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.get("/tasks/?limit=0")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_tasks_limit_too_high(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.get("/tasks/?limit=101")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_cancel_task_not_found(authenticated_client: AsyncClient) -> None:
+    with patch("app.modules.tasks.service.TaskService.cancel_task") as mock_cancel:
+        mock_cancel.side_effect = TaskNotFoundError("Not found")
+        response = await authenticated_client.post("/tasks/999/cancel")
+        assert response.status_code == 404

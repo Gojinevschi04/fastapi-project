@@ -196,3 +196,70 @@ async def test_change_password_unauthenticated(client: AsyncClient) -> None:
         json={"current_password": "old", "new_password": "new123"},
     )
     assert response.status_code == 401
+
+
+# --- Profile validation ---
+
+
+@pytest.mark.asyncio
+async def test_update_profile_duplicate_email(authenticated_client: AsyncClient) -> None:
+    with patch("app.modules.users.service.UserService.update_profile") as mock_update:
+        mock_update.side_effect = ValueError("User with this email already exists")
+        response = await authenticated_client.put("/users/me", json={"email": "taken@example.com"})
+        assert response.status_code == 400
+        assert "already exists" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_update_profile_invalid_email(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.put("/users/me", json={"email": "not-an-email"})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_change_password_new_too_short(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.post(
+        "/users/me/change-password",
+        json={"current_password": "oldpassword", "new_password": "short"},
+    )
+    assert response.status_code == 422
+
+
+# --- Admin user creation validation ---
+
+
+@pytest.mark.asyncio
+async def test_create_user_duplicate_email(admin_client: AsyncClient) -> None:
+    with patch("app.modules.users.service.UserService.create_user") as mock_create:
+        mock_create.side_effect = ValueError("User with this email already exists")
+        response = await admin_client.post(
+            "/users/",
+            json={"email": "taken@example.com", "password": "securepass123", "role": "user"},
+        )
+        assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_create_user_invalid_email(admin_client: AsyncClient) -> None:
+    response = await admin_client.post(
+        "/users/",
+        json={"email": "bad", "password": "securepass123", "role": "user"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_user_password_too_short(admin_client: AsyncClient) -> None:
+    response = await admin_client.post(
+        "/users/",
+        json={"email": "new@example.com", "password": "short", "role": "user"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_user_duplicate_email(admin_client: AsyncClient) -> None:
+    with patch("app.modules.users.service.UserService.update_user") as mock_update:
+        mock_update.side_effect = ValueError("User with this email already exists")
+        response = await admin_client.put("/users/1", json={"email": "taken@example.com"})
+        assert response.status_code == 400

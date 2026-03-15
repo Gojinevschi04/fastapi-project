@@ -138,3 +138,54 @@ async def test_delete_template_non_admin_forbidden(authenticated_client: AsyncCl
 async def test_get_templates_unauthenticated(client: AsyncClient) -> None:
     response = await client.get("/templates/")
     assert response.status_code == 401
+
+
+# --- Missing error paths ---
+
+
+@pytest.mark.asyncio
+async def test_update_template_not_found(admin_client: AsyncClient) -> None:
+    with patch("app.modules.templates.service.TemplateService.update_template") as mock_update:
+        mock_update.side_effect = TemplateNotFoundError("Not found")
+        response = await admin_client.put("/templates/999", json={"name": "Updated Name"})
+        assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_template_duplicate_name(admin_client: AsyncClient) -> None:
+    with patch("app.modules.templates.service.TemplateService.update_template") as mock_update:
+        mock_update.side_effect = TemplateNameExistsError("Name taken")
+        response = await admin_client.put("/templates/1", json={"name": "Existing Name"})
+        assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_template_not_found(admin_client: AsyncClient) -> None:
+    with patch("app.modules.templates.service.TemplateService.delete_template") as mock_delete:
+        mock_delete.side_effect = TemplateNotFoundError("Not found")
+        response = await admin_client.delete("/templates/999")
+        assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_template_invalid_name_too_short(admin_client: AsyncClient) -> None:
+    response = await admin_client.post(
+        "/templates/",
+        json={"name": "X", "base_script": "This is a valid script.", "required_slots": []},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_template_invalid_script_too_short(admin_client: AsyncClient) -> None:
+    response = await admin_client.post(
+        "/templates/",
+        json={"name": "Valid Name", "base_script": "Short", "required_slots": []},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_templates_invalid_limit(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.get("/templates/?limit=0")
+    assert response.status_code == 422
