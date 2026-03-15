@@ -6,12 +6,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.database import engine
 from app.modules.templates.models import DialogTemplate
 
-TEMPLATES = [
+EN_TEMPLATES = [
     {
         "name": "Make appointment",
         "base_script": (
             "Call the provided phone number and request an appointment. "
-            "Introduce yourself as calling on behalf of the user. "
+            "Introduce yourself as calling on behalf of the patient (use the name EXACTLY as provided). "
             "State the preferred date and time. "
             "If the preferred slot is unavailable, ask for the nearest available alternative. "
             "Confirm the final appointment details (date, time, location) before ending the call. "
@@ -171,6 +171,119 @@ TEMPLATES = [
         "required_slots": ["invoice_number", "amount_due", "due_date", "company_name"],
     },
 ]
+
+RU_TEMPLATES = [
+    {
+        "name": "Запись на приём",
+        "language": "ru",
+        "base_script": (
+            "Позвоните по указанному номеру и запишитесь на приём. "
+            "Представьтесь, что звоните от имени пациента (используйте имя ТОЧНО как указано). "
+            "Назовите желаемую дату и время. "
+            "Если выбранное время недоступно, спросите ближайшее свободное. "
+            "Подтвердите итоговые данные приёма (дата, время, адрес) перед завершением звонка. "
+            "Поблагодарите собеседника и вежливо завершите разговор."
+        ),
+        "required_slots": ["preferred_date", "preferred_time", "service_type", "patient_name"],
+    },
+    {
+        "name": "Подтверждение бронирования",
+        "language": "ru",
+        "base_script": (
+            "Позвоните для подтверждения существующего бронирования. "
+            "Назовите номер бронирования и имя гостя. "
+            "Спросите, активно ли бронирование на указанную дату. "
+            "Если есть изменения (время, количество гостей), запишите их. "
+            "Подтвердите итоговые данные и завершите звонок."
+        ),
+        "required_slots": ["reservation_id", "reservation_date", "guest_name"],
+    },
+    {
+        "name": "Запрос информации",
+        "language": "ru",
+        "base_script": (
+            "Позвоните в организацию и спросите об указанной теме. "
+            "Будьте конкретны в том, какая информация нужна. "
+            "Спросите о часах работы, ценах или доступных услугах. "
+            "Запишите все предоставленные данные. "
+            "Поблагодарите за информацию и вежливо завершите разговор."
+        ),
+        "required_slots": ["question_topic", "business_name"],
+    },
+    {
+        "name": "Отмена записи",
+        "language": "ru",
+        "base_script": (
+            "Позвоните для отмены ранее назначенной записи. "
+            "Назовите дату, время записи и имя, на которое она оформлена. "
+            "Если спросят причину, назовите указанную пользователем. "
+            "Спросите, есть ли штраф за отмену. "
+            "Подтвердите отмену и завершите звонок."
+        ),
+        "required_slots": ["appointment_date", "appointment_time", "booked_name", "reason"],
+    },
+    {
+        "name": "Перенос записи",
+        "language": "ru",
+        "base_script": (
+            "Позвоните для переноса существующей записи. "
+            "Назовите первоначальную дату, время и имя. "
+            "Объясните, что нужно перенести на новую дату и время. "
+            "Если новое время недоступно, спросите ближайшее свободное. "
+            "Подтвердите обновлённые данные перед завершением звонка."
+        ),
+        "required_slots": [
+            "original_date",
+            "original_time",
+            "new_preferred_date",
+            "new_preferred_time",
+            "booked_name",
+            "service_type",
+        ],
+    },
+]
+
+RO_TEMPLATES = [
+    {
+        "name": "Programare la medic",
+        "language": "ro",
+        "base_script": (
+            "Sunați la numărul indicat și solicitați o programare. "
+            "Prezentați-vă că sunați din partea pacientului (folosiți numele EXACT așa cum este indicat). "
+            "Menționați data și ora preferată. "
+            "Dacă intervalul nu este disponibil, întrebați despre cea mai apropiată alternativă. "
+            "Confirmați detaliile programării (data, ora, locația) înainte de a încheia. "
+            "Mulțumiți interlocutorului și încheiați politicos."
+        ),
+        "required_slots": ["preferred_date", "preferred_time", "service_type", "patient_name"],
+    },
+    {
+        "name": "Confirmare rezervare",
+        "language": "ro",
+        "base_script": (
+            "Sunați pentru a confirma o rezervare existentă. "
+            "Furnizați ID-ul rezervării și numele oaspetelui. "
+            "Întrebați dacă rezervarea este încă activă pentru data indicată. "
+            "Dacă sunt modificări (oră, număr de persoane), notați-le. "
+            "Confirmați detaliile finale și încheiați convorbirea."
+        ),
+        "required_slots": ["reservation_id", "reservation_date", "guest_name"],
+    },
+    {
+        "name": "Solicitare informații",
+        "language": "ro",
+        "base_script": (
+            "Sunați la organizație și întrebați despre subiectul specificat. "
+            "Fiți specific cu privire la informațiile necesare. "
+            "Întrebați despre programul de lucru, prețuri sau servicii disponibile. "
+            "Notați toate detaliile furnizate. "
+            "Mulțumiți pentru informații și încheiați politicos."
+        ),
+        "required_slots": ["question_topic", "business_name"],
+    },
+]
+
+TEMPLATES = EN_TEMPLATES + RU_TEMPLATES + RO_TEMPLATES
 
 
 async def seed() -> None:

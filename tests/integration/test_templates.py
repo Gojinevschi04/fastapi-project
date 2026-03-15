@@ -14,6 +14,8 @@ async def test_create_template(admin_client: AsyncClient) -> None:
         mock_template.name = "Make Appointment"
         mock_template.base_script = "Hello, I'd like to make an appointment."
         mock_template.required_slots = ["preferred_date"]
+        mock_template.language = "en"
+        mock_template.is_active = True
         mock_template.created_at = "2026-01-01T00:00:00"
         mock_template.updated_at = "2026-01-01T00:00:00"
         mock_create.return_value = mock_template
@@ -49,6 +51,8 @@ async def test_get_templates(authenticated_client: AsyncClient) -> None:
         mock_template.name = "Make Appointment"
         mock_template.base_script = "Hello, I would like to help you today."
         mock_template.required_slots = []
+        mock_template.language = "en"
+        mock_template.is_active = True
         mock_template.created_at = "2026-01-01T00:00:00"
         mock_template.updated_at = "2026-01-01T00:00:00"
         mock_get.return_value = [mock_template]
@@ -66,6 +70,8 @@ async def test_get_template(authenticated_client: AsyncClient) -> None:
         mock_template.name = "Make Appointment"
         mock_template.base_script = "Hello, I would like to help you today."
         mock_template.required_slots = []
+        mock_template.language = "en"
+        mock_template.is_active = True
         mock_template.created_at = "2026-01-01T00:00:00"
         mock_template.updated_at = "2026-01-01T00:00:00"
         mock_get.return_value = mock_template
@@ -91,6 +97,8 @@ async def test_update_template(admin_client: AsyncClient) -> None:
         mock_template.name = "Updated"
         mock_template.base_script = "Hello updated"
         mock_template.required_slots = []
+        mock_template.language = "en"
+        mock_template.is_active = True
         mock_template.created_at = "2026-01-01T00:00:00"
         mock_template.updated_at = "2026-01-01T00:00:00"
         mock_update.return_value = mock_template
@@ -308,6 +316,7 @@ async def test_get_templates_excludes_inactive(authenticated_client: AsyncClient
         active_template.name = "Active Template"
         active_template.base_script = "Hello, this is an active template."
         active_template.required_slots = []
+        active_template.language = "en"
         active_template.is_active = True
         active_template.created_at = "2026-01-01T00:00:00"
         active_template.updated_at = "2026-01-01T00:00:00"
@@ -329,6 +338,7 @@ async def test_get_template_response_has_is_active(authenticated_client: AsyncCl
         mock_template.name = "Test Template"
         mock_template.base_script = "Hello, I would like to help you today."
         mock_template.required_slots = []
+        mock_template.language = "en"
         mock_template.is_active = True
         mock_template.created_at = "2026-01-01T00:00:00"
         mock_template.updated_at = "2026-01-01T00:00:00"

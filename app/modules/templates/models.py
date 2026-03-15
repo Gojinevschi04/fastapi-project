@@ -10,4 +10,5 @@ class DialogTemplate(BaseModel, table=True):
     name: str = Field(index=True, nullable=False)
     base_script: str = Field(nullable=False)
     required_slots: list[str] = Field(default=[], sa_column=Column(JSON, nullable=False))
+    language: str = Field(default="en", nullable=False)  # en, ru, ro
     is_active: bool = Field(default=True, nullable=False)

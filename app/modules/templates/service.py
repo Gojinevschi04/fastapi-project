@@ -28,6 +28,7 @@ class TemplateService:
             name=data.name,
             base_script=data.base_script,
             required_slots=data.required_slots,
+            language=data.language,
         )
         return await self.template_repository.create(template)
 

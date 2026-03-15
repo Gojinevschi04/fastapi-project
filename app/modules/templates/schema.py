@@ -2,11 +2,22 @@ from datetime import datetime
 
 from pydantic import BaseModel, field_validator
 
+SUPPORTED_LANGUAGES = ("en", "ru", "ro")
+
 
 class TemplateBase(BaseModel):
     name: str
     base_script: str
     required_slots: list[str] = []
+    language: str = "en"
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, v: str) -> str:
+        v = v.strip().lower()
+        if v not in SUPPORTED_LANGUAGES:
+            raise ValueError(f"Language must be one of: {', '.join(SUPPORTED_LANGUAGES)}")
+        return v
 
     @field_validator("name")
     @classmethod
@@ -78,6 +89,7 @@ class TemplateResponse(BaseModel):
     name: str
     base_script: str
     required_slots: list[str]
+    language: str
     is_active: bool
     created_at: datetime
     updated_at: datetime
