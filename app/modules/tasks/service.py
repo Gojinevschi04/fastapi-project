@@ -46,8 +46,11 @@ class TaskService:
         logger.info("Creating task for user %s with template %s", user_id, template.name)
         return await self.task_repository.create(task)
 
-    async def get_task(self, task_id: int, user_id: int) -> Task:
-        task = await self.task_repository.get_by_id(task_id, user_id)
+    async def get_task(self, task_id: int, user_id: int, is_admin: bool = False) -> Task:
+        if is_admin:
+            task = await self.task_repository.get_by_id_any_user(task_id)
+        else:
+            task = await self.task_repository.get_by_id(task_id, user_id)
         if not task:
             raise TaskNotFoundError(f"Task with id {task_id} not found")
         return task

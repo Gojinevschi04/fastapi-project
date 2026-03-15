@@ -28,8 +28,11 @@ class CallService:
         self.log_line_repository = log_line_repository
         self.task_repository = task_repository
 
-    async def get_transcript(self, task_id: int, user_id: int) -> TranscriptResponse:
-        task = await self.task_repository.get_by_id(task_id, user_id)
+    async def get_transcript(self, task_id: int, user_id: int, is_admin: bool = False) -> TranscriptResponse:
+        if is_admin:
+            task = await self.task_repository.get_by_id_any_user(task_id)
+        else:
+            task = await self.task_repository.get_by_id(task_id, user_id)
         if not task:
             raise TaskNotFoundError(f"Task with id {task_id} not found")
 
@@ -62,8 +65,11 @@ class CallService:
             ],
         )
 
-    async def get_session_by_task(self, task_id: int, user_id: int) -> CallSession:
-        task = await self.task_repository.get_by_id(task_id, user_id)
+    async def get_session_by_task(self, task_id: int, user_id: int, is_admin: bool = False) -> CallSession:
+        if is_admin:
+            task = await self.task_repository.get_by_id_any_user(task_id)
+        else:
+            task = await self.task_repository.get_by_id(task_id, user_id)
         if not task:
             raise TaskNotFoundError(f"Task with id {task_id} not found")
 
@@ -73,8 +79,8 @@ class CallService:
 
         return call_session
 
-    async def get_recording_audio(self, task_id: int, user_id: int) -> bytes:
-        session = await self.get_session_by_task(task_id, user_id)
+    async def get_recording_audio(self, task_id: int, user_id: int, is_admin: bool = False) -> bytes:
+        session = await self.get_session_by_task(task_id, user_id, is_admin=is_admin)
         if not session.recording_uri:
             raise ValueError(f"No recording available for task {task_id}")
 

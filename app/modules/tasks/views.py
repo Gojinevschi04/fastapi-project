@@ -11,6 +11,7 @@ from app.modules.tasks.service import TaskService
 from app.modules.templates.exceptions import TemplateNotFoundError
 from app.modules.users.middleware import get_current_user
 from app.modules.users.models import User
+from app.modules.users.schema import UserRole
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -22,6 +23,7 @@ def _task_to_response(task: "Task", template_name: str | None = None) -> TaskRes
         status=task.status,
         template_id=task.template_id,
         template_name=template_name,
+        user_id=task.user_id,
         slot_data=task.slot_data,
         scheduled_time=task.scheduled_time,
         summary=task.summary,
@@ -79,7 +81,8 @@ async def get_task_view(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> TaskResponse:
     try:
-        task = await task_service.get_task(task_id, current_user.id)
+        is_admin = current_user.role == UserRole.ADMIN
+        task = await task_service.get_task(task_id, current_user.id, is_admin=is_admin)
     except TaskNotFoundError as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e)) from e
 

@@ -63,6 +63,7 @@ async def get_admin_tasks_view(
                 target_phone=t.target_phone,
                 status=t.status,
                 template_id=t.template_id,
+                user_id=t.user_id,
                 slot_data=t.slot_data,
                 scheduled_time=t.scheduled_time,
                 summary=t.summary,

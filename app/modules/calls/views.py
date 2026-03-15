@@ -10,6 +10,7 @@ from app.modules.calls.service import CallService
 from app.modules.tasks.exceptions import TaskNotFoundError
 from app.modules.users.middleware import get_current_user
 from app.modules.users.models import User
+from app.modules.users.schema import UserRole
 
 router = APIRouter(prefix="/tasks", tags=["calls"])
 
@@ -21,7 +22,8 @@ async def get_transcript_view(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> TranscriptResponse:
     try:
-        return await call_service.get_transcript(task_id, current_user.id)
+        is_admin = current_user.role == UserRole.ADMIN
+        return await call_service.get_transcript(task_id, current_user.id, is_admin=is_admin)
     except TaskNotFoundError as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e)) from e
     except CallSessionNotFoundError as e:
@@ -35,7 +37,8 @@ async def get_call_session_view(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> CallSessionResponse:
     try:
-        session = await call_service.get_session_by_task(task_id, current_user.id)
+        is_admin = current_user.role == UserRole.ADMIN
+        session = await call_service.get_session_by_task(task_id, current_user.id, is_admin=is_admin)
     except TaskNotFoundError as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e)) from e
     except CallSessionNotFoundError as e:
@@ -59,12 +62,10 @@ async def download_recording_view(
     current_user: Annotated[User, Depends(get_current_user)],
     download: bool = False,
 ) -> StreamingResponse:
-    """Stream or download the call recording as a WAV audio file.
-
-    Use ?download=true to force download instead of inline playback.
-    """
+    """Stream or download the call recording as a WAV audio file."""
     try:
-        audio_bytes = await call_service.get_recording_audio(task_id, current_user.id)
+        is_admin = current_user.role == UserRole.ADMIN
+        audio_bytes = await call_service.get_recording_audio(task_id, current_user.id, is_admin=is_admin)
     except TaskNotFoundError as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e)) from e
     except CallSessionNotFoundError as e:

@@ -65,6 +65,7 @@ class TaskResponse(BaseModel):
     status: TaskStatus
     template_id: int
     template_name: str | None = None
+    user_id: int | None = None
     slot_data: dict[str, str]
     scheduled_time: datetime | None
     summary: str | None

@@ -18,6 +18,10 @@ class TaskRepository(Repository):
         result = await self._session.exec(select(Task).where(Task.id == task_id, Task.user_id == user_id))
         return result.first()
 
+    async def get_by_id_any_user(self, task_id: int) -> Task | None:
+        result = await self._session.exec(select(Task).where(Task.id == task_id))
+        return result.first()
+
     async def get_all_paginated(
         self,
         user_id: int,
