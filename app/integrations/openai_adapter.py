@@ -4,6 +4,7 @@ from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.retry import async_retry
 from app.integrations.interfaces import ILLMProvider
 
 logger = get_logger(__name__)
@@ -25,6 +26,7 @@ class OpenAIAdapter(ILLMProvider):
         self._tts_voice = settings.OPENAI_TTS_VOICE
         self._stt_model = settings.OPENAI_STT_MODEL
 
+    @async_retry(max_retries=3, delay=1.0, backoff=2.0)
     async def transcribe(self, audio_data: bytes) -> str:
         logger.debug("Transcribing %d bytes of audio", len(audio_data))
         audio_file = io.BytesIO(audio_data)
@@ -37,6 +39,7 @@ class OpenAIAdapter(ILLMProvider):
         logger.debug("Transcription result: %s", transcript.text[:100])
         return transcript.text
 
+    @async_retry(max_retries=3, delay=1.0, backoff=2.0)
     async def generate_response(self, conversation_history: list[dict[str, str]], system_prompt: str) -> str:
         logger.debug("Generating response with %d messages in history", len(conversation_history))
         messages = [{"role": "system", "content": system_prompt}, *conversation_history]
@@ -51,6 +54,7 @@ class OpenAIAdapter(ILLMProvider):
         logger.debug("Generated response: %s", reply[:100])
         return reply
 
+    @async_retry(max_retries=3, delay=1.0, backoff=2.0)
     async def synthesize(self, text: str) -> bytes:
         logger.debug("Synthesizing speech for: %s", text[:100])
         response = await self._client.audio.speech.create(

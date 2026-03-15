@@ -14,6 +14,9 @@ logger = get_logger(__name__)
 POLL_INTERVAL_SECONDS = 30
 
 
+RETRYABLE_ERROR_KEYWORDS = ["connection", "timeout", "network", "refused", "retries"]
+
+
 async def get_due_tasks(session: AsyncSession) -> list[tuple[int, int]]:
     """Find scheduled tasks past their scheduled_time. Returns list of (task_id, user_id)."""
     now = datetime.now()
@@ -24,6 +27,43 @@ async def get_due_tasks(session: AsyncSession) -> list[tuple[int, int]]:
         )
     )
     return list(result.all())
+
+
+async def get_retryable_failed_tasks(session: AsyncSession) -> list[tuple[int, int]]:
+    """Find failed tasks with network-related errors that should be auto-retried.
+
+    Only retries tasks that failed due to transient network issues (connection,
+    timeout, etc.), not business logic failures (rejection, cancelled by user).
+    Tasks are retried once — if error_reason starts with '[RETRIED]', skip it.
+    """
+    result = await session.exec(
+        select(Task.id, Task.user_id, Task.error_reason).where(
+            Task.status == TaskStatus.FAILED,
+            Task.error_reason.isnot(None),
+        )
+    )
+    retryable = []
+    for task_id, user_id, error_reason in result.all():
+        if not error_reason or error_reason.startswith("[RETRIED]"):
+            continue
+        error_lower = error_reason.lower()
+        if any(kw in error_lower for kw in RETRYABLE_ERROR_KEYWORDS):
+            retryable.append((task_id, user_id))
+    return retryable
+
+
+async def mark_task_for_retry(session: AsyncSession, task_id: int) -> None:
+    """Reset a failed task to PENDING for retry, marking it as retried."""
+    result = await session.exec(select(Task).where(Task.id == task_id))
+    task = result.first()
+    if task and task.status == TaskStatus.FAILED:
+        original_error = task.error_reason or ""
+        task.status = TaskStatus.PENDING
+        task.error_reason = f"[RETRIED] {original_error}"
+        task.summary = None
+        session.add(task)
+        await session.commit()
+        logger.info("Task %d reset for retry (was: %s)", task_id, original_error[:100])
 
 
 async def transition_task(session: AsyncSession, task_id: int) -> None:
@@ -68,6 +108,21 @@ async def run_scheduler() -> None:
 
             if due_tasks:
                 logger.info("Processed %d due tasks", len(due_tasks))
+
+            # Auto-retry failed tasks with network errors (once only)
+            async with AsyncSession(engine) as session:
+                retryable = await get_retryable_failed_tasks(session)
+
+            for task_id, user_id in retryable:
+                try:
+                    async with AsyncSession(engine) as session:
+                        await mark_task_for_retry(session, task_id)
+                    await execute_due_task(task_id, user_id)
+                except Exception as e:
+                    logger.error("Retry of task %d failed: %s", task_id, str(e))
+
+            if retryable:
+                logger.info("Retried %d failed tasks", len(retryable))
 
         except Exception as e:
             logger.error("Scheduler error: %s", str(e))
