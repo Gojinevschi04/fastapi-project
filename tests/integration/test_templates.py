@@ -189,3 +189,104 @@ async def test_create_template_invalid_script_too_short(admin_client: AsyncClien
 async def test_get_templates_invalid_limit(authenticated_client: AsyncClient) -> None:
     response = await authenticated_client.get("/templates/?limit=0")
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_templates_limit_too_high(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.get("/templates/?limit=101")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_templates_negative_offset(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.get("/templates/?offset=-1")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_template_missing_fields(admin_client: AsyncClient) -> None:
+    response = await admin_client.post("/templates/", json={})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_template_name_too_long(admin_client: AsyncClient) -> None:
+    response = await admin_client.post(
+        "/templates/",
+        json={"name": "X" * 101, "base_script": "A valid script that is long enough.", "required_slots": []},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_template_script_too_long(admin_client: AsyncClient) -> None:
+    response = await admin_client.post(
+        "/templates/",
+        json={"name": "Valid Name", "base_script": "X" * 5001, "required_slots": []},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_template_too_many_slots(admin_client: AsyncClient) -> None:
+    response = await admin_client.post(
+        "/templates/",
+        json={
+            "name": "Valid Name",
+            "base_script": "A valid script that is long enough.",
+            "required_slots": [f"slot_{i}" for i in range(21)],
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_template_empty_slot_name(admin_client: AsyncClient) -> None:
+    response = await admin_client.post(
+        "/templates/",
+        json={
+            "name": "Valid Name",
+            "base_script": "A valid script that is long enough.",
+            "required_slots": ["valid_slot", ""],
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_template_name_too_short(admin_client: AsyncClient) -> None:
+    response = await admin_client.put("/templates/1", json={"name": "X"})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_template_script_too_short(admin_client: AsyncClient) -> None:
+    response = await admin_client.put("/templates/1", json={"base_script": "Short"})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_template_unauthenticated(client: AsyncClient) -> None:
+    response = await client.put("/templates/1", json={"name": "Updated"})
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_delete_template_unauthenticated(client: AsyncClient) -> None:
+    response = await client.delete("/templates/1")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_create_template_unauthenticated(client: AsyncClient) -> None:
+    response = await client.post(
+        "/templates/",
+        json={"name": "Test", "base_script": "A valid script that is long enough.", "required_slots": []},
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_get_template_unauthenticated(client: AsyncClient) -> None:
+    response = await client.get("/templates/1")
+    assert response.status_code == 401

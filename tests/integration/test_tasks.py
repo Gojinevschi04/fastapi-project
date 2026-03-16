@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from httpx import AsyncClient
 
-from app.modules.tasks.exceptions import TaskNotCancellableError, TaskNotFoundError
+from app.modules.tasks.exceptions import InvalidTaskDataError, TaskNotCancellableError, TaskNotFoundError
 from app.modules.tasks.schema import TaskStatsResponse, TaskStatus
 from app.modules.templates.exceptions import TemplateNotFoundError
 
@@ -231,3 +231,81 @@ async def test_cancel_task_not_found(authenticated_client: AsyncClient) -> None:
         mock_cancel.side_effect = TaskNotFoundError("Not found")
         response = await authenticated_client.post("/tasks/999/cancel")
         assert response.status_code == 404
+
+
+# --- InvalidTaskDataError path ---
+
+
+@pytest.mark.asyncio
+async def test_create_task_invalid_data(authenticated_client: AsyncClient) -> None:
+    with patch("app.modules.tasks.service.TaskService.create_task") as mock_create:
+        mock_create.side_effect = InvalidTaskDataError("Missing required slot: preferred_date")
+        response = await authenticated_client.post(
+            "/tasks/",
+            json={"target_phone": "+37312345678", "template_id": 1, "slot_data": {}},
+        )
+        assert response.status_code == 400
+        assert "preferred_date" in response.json()["detail"]
+
+
+# --- Slot data validation ---
+
+
+@pytest.mark.asyncio
+async def test_create_task_slot_key_too_long(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.post(
+        "/tasks/",
+        json={
+            "target_phone": "+37312345678",
+            "template_id": 1,
+            "slot_data": {"k" * 51: "value"},
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_task_slot_value_too_long(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.post(
+        "/tasks/",
+        json={
+            "target_phone": "+37312345678",
+            "template_id": 1,
+            "slot_data": {"key": "v" * 501},
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_task_too_many_slots(authenticated_client: AsyncClient) -> None:
+    slots = {f"slot_{i}": f"value_{i}" for i in range(21)}
+    response = await authenticated_client.post(
+        "/tasks/",
+        json={"target_phone": "+37312345678", "template_id": 1, "slot_data": slots},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_task_invalid_status_filter(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.get("/tasks/?status=nonexistent")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_task_negative_offset(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.get("/tasks/?offset=-1")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_cancel_task_unauthenticated(client: AsyncClient) -> None:
+    response = await client.post("/tasks/1/cancel")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_execute_task_unauthenticated(client: AsyncClient) -> None:
+    response = await client.post("/tasks/1/execute")
+    assert response.status_code == 401

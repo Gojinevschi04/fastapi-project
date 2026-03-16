@@ -164,3 +164,63 @@ async def test_reset_password_always_returns_ok(client: AsyncClient) -> None:
 async def test_reset_password_invalid_email(client: AsyncClient) -> None:
     response = await client.post("/auth/reset-password", json={"email": ""})
     assert response.status_code == 422
+
+
+# --- Extra validation ---
+
+
+@pytest.mark.asyncio
+async def test_register_missing_email(client: AsyncClient) -> None:
+    response = await client.post("/auth/register", json={"password": "securepass123"})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_missing_password(client: AsyncClient) -> None:
+    response = await client.post("/auth/register", json={"email": "test@example.com"})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_empty_body(client: AsyncClient) -> None:
+    response = await client.post("/auth/register", json={})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_login_missing_email(client: AsyncClient) -> None:
+    response = await client.post("/auth/login", json={"password": "password123"})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_login_missing_password(client: AsyncClient) -> None:
+    response = await client.post("/auth/login", json={"email": "user@example.com"})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_login_empty_body(client: AsyncClient) -> None:
+    response = await client.post("/auth/login", json={})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_refresh_missing_token(client: AsyncClient) -> None:
+    response = await client.post("/auth/refresh", json={})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_reset_password_missing_body(client: AsyncClient) -> None:
+    response = await client.post("/auth/reset-password", json={})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_password_too_long(client: AsyncClient) -> None:
+    response = await client.post("/auth/register", json={
+        "email": "test@example.com",
+        "password": "x" * 129,
+    })
+    assert response.status_code == 422

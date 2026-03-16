@@ -16,6 +16,14 @@ Architecture:
 
 import asyncio
 
+# Import all SQLModel table classes so metadata is fully populated.
+# Without this, SQLModel cannot resolve foreign keys (e.g. Task.user_id → user.id)
+# because the worker doesn't import routers like the API server does.
+import app.modules.calls.models  # noqa: F401
+import app.modules.files.models  # noqa: F401
+import app.modules.tasks.models  # noqa: F401
+import app.modules.templates.models  # noqa: F401
+import app.modules.users.models  # noqa: F401
 from app.core.logging import get_logger
 from app.modules.scheduler.service import run_scheduler
 

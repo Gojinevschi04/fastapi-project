@@ -287,3 +287,60 @@ async def test_delete_admin_user_unauthenticated(client: AsyncClient) -> None:
 async def test_update_user_role_unauthenticated(client: AsyncClient) -> None:
     response = await client.put("/admin/users/1", json={"role": "admin"})
     assert response.status_code == 401
+
+
+# --- Pagination edge cases ---
+
+
+@pytest.mark.asyncio
+async def test_get_admin_users_negative_offset(admin_client: AsyncClient) -> None:
+    response = await admin_client.get("/admin/users?offset=-1")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_admin_users_limit_too_high(admin_client: AsyncClient) -> None:
+    response = await admin_client.get("/admin/users?limit=101")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_admin_tasks_negative_offset(admin_client: AsyncClient) -> None:
+    response = await admin_client.get("/admin/tasks?offset=-1")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_admin_tasks_invalid_status(admin_client: AsyncClient) -> None:
+    response = await admin_client.get("/admin/tasks?status=nonexistent")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_admin_tasks_with_pagination(admin_client: AsyncClient) -> None:
+    with patch("app.modules.admin.service.AdminService.get_all_tasks") as mock_get:
+        mock_get.return_value = ([], 0)
+        response = await admin_client.get("/admin/tasks?limit=10&offset=20")
+        assert response.status_code == 200
+        mock_get.assert_called_once_with(10, 20, None)
+
+
+@pytest.mark.asyncio
+async def test_get_admin_users_with_pagination(admin_client: AsyncClient) -> None:
+    with patch("app.modules.admin.service.AdminService.get_all_users") as mock_get:
+        mock_get.return_value = ([], 0)
+        response = await admin_client.get("/admin/users?limit=10&offset=5")
+        assert response.status_code == 200
+        mock_get.assert_called_once_with(10, 5)
+
+
+@pytest.mark.asyncio
+async def test_update_user_role_invalid_user_id_type(admin_client: AsyncClient) -> None:
+    response = await admin_client.put("/admin/users/abc", json={"role": "admin"})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_delete_admin_user_invalid_user_id_type(admin_client: AsyncClient) -> None:
+    response = await admin_client.delete("/admin/users/abc")
+    assert response.status_code == 422
