@@ -263,3 +263,75 @@ async def test_update_user_duplicate_email(admin_client: AsyncClient) -> None:
         mock_update.side_effect = ValueError("User with this email already exists")
         response = await admin_client.put("/users/1", json={"email": "taken@example.com"})
         assert response.status_code == 400
+
+
+# --- Reauth and access control ---
+
+
+@pytest.mark.asyncio
+async def test_change_password_returns_require_reauth(authenticated_client: AsyncClient) -> None:
+    with patch("app.modules.users.service.UserService.change_password") as mock_change:
+        mock_change.return_value = True
+        response = await authenticated_client.post(
+            "/users/me/change-password",
+            json={"current_password": "oldpassword", "new_password": "newpass1234"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["require_reauth"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_profile_email_change_returns_require_reauth(authenticated_client: AsyncClient) -> None:
+    with patch("app.modules.users.service.UserService.update_profile") as mock_update:
+        mock_update.return_value = UserResponse(
+            id=1,
+            email="newemail@example.com",
+            role=UserRole.USER,
+            created_at="2024-01-01T00:00:00",
+            updated_at="2024-01-01T00:00:00",
+        )
+        response = await authenticated_client.put("/users/me", json={"email": "newemail@example.com"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["require_reauth"] is True
+        assert "log in again" in data["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_update_profile_phone_only_no_reauth(authenticated_client: AsyncClient) -> None:
+    with patch("app.modules.users.service.UserService.update_profile") as mock_update:
+        mock_update.return_value = UserResponse(
+            id=1,
+            email="test@example.com",
+            role=UserRole.USER,
+            phone_number="+37399999999",
+            created_at="2024-01-01T00:00:00",
+            updated_at="2024-01-01T00:00:00",
+        )
+        response = await authenticated_client.put("/users/me", json={"phone_number": "+37399999999"})
+        assert response.status_code == 200
+        data = response.json()
+        assert "require_reauth" not in data or data.get("require_reauth") is False
+
+
+@pytest.mark.asyncio
+async def test_delete_user_self_blocked(admin_client: AsyncClient) -> None:
+    response = await admin_client.delete("/users/2")  # admin has id=2
+    assert response.status_code == 400
+    assert "Cannot delete your own account" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_create_user_unauthenticated(client: AsyncClient) -> None:
+    response = await client.post(
+        "/users/",
+        json={"email": "new@example.com", "password": "test12345", "role": "user"},
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_get_users_non_admin(authenticated_client: AsyncClient) -> None:
+    response = await authenticated_client.get("/users/")
+    assert response.status_code == 403

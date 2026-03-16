@@ -47,6 +47,7 @@ async def test_process_completed_task(mock_task: Task, mock_call_session: CallSe
             to_email="user@example.com",
             task_phone=mock_task.target_phone,
             summary="Appointment booked for March 20.",
+            task_id=mock_task.id,
         )
         mock_email.send_task_failure.assert_not_called()
 
@@ -85,6 +86,7 @@ async def test_process_failed_task(mock_task: Task) -> None:
             to_email="user@example.com",
             task_phone=mock_task.target_phone,
             error_reason="No answer after 3 retries",
+            task_id=mock_task.id,
         )
         mock_email.send_task_success.assert_not_called()
 

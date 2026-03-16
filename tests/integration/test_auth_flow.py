@@ -3,11 +3,10 @@
 These test the actual auth endpoints (not user CRUD which is in test_auth.py).
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
-
 
 # --- Register ---
 

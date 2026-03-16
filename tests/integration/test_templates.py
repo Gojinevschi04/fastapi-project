@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from httpx import AsyncClient
 
-from app.modules.templates.exceptions import TemplateInUseError, TemplateNameExistsError, TemplateNotFoundError
+from app.modules.templates.exceptions import TemplateNameExistsError, TemplateNotFoundError
 
 
 @pytest.mark.asyncio
@@ -20,7 +20,11 @@ async def test_create_template(admin_client: AsyncClient) -> None:
 
         response = await admin_client.post(
             "/templates/",
-            json={"name": "Make Appointment", "base_script": "Hello, I would like to help you today.", "required_slots": ["preferred_date"]},
+            json={
+                "name": "Make Appointment",
+                "base_script": "Hello, I would like to help you today.",
+                "required_slots": ["preferred_date"],
+            },
         )
         assert response.status_code == 201
         assert response.json()["name"] == "Make Appointment"
@@ -102,15 +106,7 @@ async def test_delete_template(admin_client: AsyncClient) -> None:
         mock_delete.return_value = True
         response = await admin_client.delete("/templates/1")
         assert response.status_code == 200
-        assert response.json()["message"] == "Template deleted successfully"
-
-
-@pytest.mark.asyncio
-async def test_delete_template_in_use(admin_client: AsyncClient) -> None:
-    with patch("app.modules.templates.service.TemplateService.delete_template") as mock_delete:
-        mock_delete.side_effect = TemplateInUseError("Template is used by tasks")
-        response = await admin_client.delete("/templates/1")
-        assert response.status_code == 409
+        assert response.json()["message"] == "Template deactivated successfully"
 
 
 @pytest.mark.asyncio
@@ -290,3 +286,56 @@ async def test_create_template_unauthenticated(client: AsyncClient) -> None:
 async def test_get_template_unauthenticated(client: AsyncClient) -> None:
     response = await client.get("/templates/1")
     assert response.status_code == 401
+
+
+# --- Template deactivation and is_active field ---
+
+
+@pytest.mark.asyncio
+async def test_delete_template_returns_deactivated_message(admin_client: AsyncClient) -> None:
+    with patch("app.modules.templates.service.TemplateService.delete_template") as mock_delete:
+        mock_delete.return_value = True
+        response = await admin_client.delete("/templates/1")
+        assert response.status_code == 200
+        assert "deactivated" in response.json()["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_get_templates_excludes_inactive(authenticated_client: AsyncClient) -> None:
+    with patch("app.modules.templates.service.TemplateService.get_templates") as mock_get:
+        active_template = MagicMock()
+        active_template.id = 1
+        active_template.name = "Active Template"
+        active_template.base_script = "Hello, this is an active template."
+        active_template.required_slots = []
+        active_template.is_active = True
+        active_template.created_at = "2026-01-01T00:00:00"
+        active_template.updated_at = "2026-01-01T00:00:00"
+        # Service already filters inactive templates; mock returns only active
+        mock_get.return_value = [active_template]
+
+        response = await authenticated_client.get("/templates/")
+        assert response.status_code == 200
+        templates = response.json()
+        assert len(templates) == 1
+        assert templates[0]["is_active"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_template_response_has_is_active(authenticated_client: AsyncClient) -> None:
+    with patch("app.modules.templates.service.TemplateService.get_template") as mock_get:
+        mock_template = MagicMock()
+        mock_template.id = 1
+        mock_template.name = "Test Template"
+        mock_template.base_script = "Hello, I would like to help you today."
+        mock_template.required_slots = []
+        mock_template.is_active = True
+        mock_template.created_at = "2026-01-01T00:00:00"
+        mock_template.updated_at = "2026-01-01T00:00:00"
+        mock_get.return_value = mock_template
+
+        response = await authenticated_client.get("/templates/1")
+        assert response.status_code == 200
+        data = response.json()
+        assert "is_active" in data
+        assert data["is_active"] is True

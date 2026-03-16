@@ -4,7 +4,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.modules.scheduler.service import get_due_tasks, get_retryable_failed_tasks, mark_task_for_retry, transition_task
+from app.modules.scheduler.service import (
+    get_due_tasks,
+    get_retryable_failed_tasks,
+    mark_task_for_retry,
+    transition_task,
+)
 from app.modules.tasks.models import Task
 from app.modules.tasks.schema import TaskStatus
 

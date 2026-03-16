@@ -238,21 +238,31 @@ async def test_update_user_role_demote_to_user() -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete_user() -> None:
+async def test_delete_user(mock_user: User) -> None:
+    mock_session = AsyncMock()
+    # No tasks for user
+    mock_result_empty = MagicMock()
+    mock_result_empty.all.return_value = []
+    mock_session.exec = AsyncMock(return_value=mock_result_empty)
+    mock_session.delete = AsyncMock()
+    mock_session.commit = AsyncMock()
+
     mock_user_repo = MagicMock(spec=UserRepository)
-    mock_user_repo.delete = AsyncMock(return_value=True)
+    mock_user_repo.get_by_id = AsyncMock(return_value=mock_user)
+    mock_user_repo._session = mock_session
 
     service = _build_service(user_repo=mock_user_repo)
     result = await service.delete_user(1)
 
     assert result is True
-    mock_user_repo.delete.assert_called_once_with(1)
+    mock_session.delete.assert_called_once_with(mock_user)
+    mock_session.commit.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_delete_user_not_found() -> None:
     mock_user_repo = MagicMock(spec=UserRepository)
-    mock_user_repo.delete = AsyncMock(return_value=False)
+    mock_user_repo.get_by_id = AsyncMock(return_value=None)
 
     service = _build_service(user_repo=mock_user_repo)
     result = await service.delete_user(999)

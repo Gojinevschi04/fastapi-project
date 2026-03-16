@@ -6,7 +6,6 @@ from app.modules.tasks.schema import TaskBase
 from app.modules.templates.schema import TemplateCreate, TemplateUpdate
 from app.modules.users.schema import ChangePassword, ProfileUpdate, UserCreate
 
-
 # --- Auth validation ---
 
 
@@ -84,7 +83,11 @@ class TestTemplateCreateValidation:
 
     def test_too_many_slots(self) -> None:
         with pytest.raises(ValidationError, match="Maximum 20"):
-            TemplateCreate(name="Template", base_script="Valid script content here.", required_slots=[f"slot_{i}" for i in range(21)])
+            TemplateCreate(
+                name="Template",
+                base_script="Valid script content here.",
+                required_slots=[f"slot_{i}" for i in range(21)],
+            )
 
     def test_empty_slot_name(self) -> None:
         with pytest.raises(ValidationError, match="cannot be empty"):

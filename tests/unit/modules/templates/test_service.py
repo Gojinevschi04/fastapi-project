@@ -1,9 +1,8 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from sqlalchemy.exc import IntegrityError
 
-from app.modules.templates.exceptions import TemplateInUseError, TemplateNameExistsError, TemplateNotFoundError
+from app.modules.templates.exceptions import TemplateNameExistsError, TemplateNotFoundError
 from app.modules.templates.models import DialogTemplate
 from app.modules.templates.repository import TemplateRepository
 from app.modules.templates.schema import TemplateCreate, TemplateUpdate
@@ -17,7 +16,9 @@ async def test_create_template_success(mock_template: DialogTemplate) -> None:
     mock_repo.create = AsyncMock(return_value=mock_template)
 
     service = TemplateService(template_repository=mock_repo)
-    data = TemplateCreate(name="Make Appointment", base_script="Hello, I'd like to help you today.", required_slots=["date"])
+    data = TemplateCreate(
+        name="Make Appointment", base_script="Hello, I'd like to help you today.", required_slots=["date"],
+    )
     result = await service.create_template(data)
 
     assert result == mock_template
@@ -112,12 +113,13 @@ async def test_update_template_not_found() -> None:
 async def test_delete_template_success(mock_template: DialogTemplate) -> None:
     mock_repo = MagicMock(spec=TemplateRepository)
     mock_repo.get_by_id = AsyncMock(return_value=mock_template)
-    mock_repo.delete = AsyncMock(return_value=True)
+    mock_repo.deactivate = AsyncMock(return_value=True)
 
     service = TemplateService(template_repository=mock_repo)
     result = await service.delete_template(1)
 
     assert result is True
+    mock_repo.deactivate.assert_called_once_with(1)
 
 
 @pytest.mark.asyncio
@@ -132,16 +134,14 @@ async def test_delete_template_not_found() -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete_template_in_use(mock_template: DialogTemplate) -> None:
+async def test_delete_template_already_inactive(mock_template: DialogTemplate) -> None:
+    mock_template.is_active = False
     mock_repo = MagicMock(spec=TemplateRepository)
     mock_repo.get_by_id = AsyncMock(return_value=mock_template)
-    mock_repo.delete = AsyncMock(
-        side_effect=IntegrityError("FK violation", params=None, orig=Exception())
-    )
 
     service = TemplateService(template_repository=mock_repo)
 
-    with pytest.raises(TemplateInUseError):
+    with pytest.raises(TemplateNotFoundError):
         await service.delete_template(1)
 
 

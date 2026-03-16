@@ -4,8 +4,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.modules.tasks.schema import AdminStatsResponse, TaskStatsResponse, TaskStatus
-from app.modules.users.schema import UserListResponse, UserResponse, UserRole
-
+from app.modules.users.schema import UserRole
 
 # --- Stats ---
 
@@ -213,7 +212,10 @@ async def test_password_reset(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_password_reset_existing_email(client: AsyncClient) -> None:
     with patch("app.modules.users.repository.UserRepository.get_by_email") as mock_get:
-        mock_get.return_value = True
+        mock_user = MagicMock()
+        mock_user.id = 1
+        mock_user.email = "existing@example.com"
+        mock_get.return_value = mock_user
         response = await client.post("/auth/reset-password", json={"email": "existing@example.com"})
         assert response.status_code == 200
         assert "reset link" in response.json()["message"].lower()
@@ -344,3 +346,15 @@ async def test_update_user_role_invalid_user_id_type(admin_client: AsyncClient) 
 async def test_delete_admin_user_invalid_user_id_type(admin_client: AsyncClient) -> None:
     response = await admin_client.delete("/admin/users/abc")
     assert response.status_code == 422
+
+
+# --- Cascade delete and self-role-change ---
+
+
+@pytest.mark.asyncio
+async def test_delete_user_with_tasks(admin_client: AsyncClient) -> None:
+    with patch("app.modules.admin.service.AdminService.delete_user") as mock_delete:
+        mock_delete.return_value = True
+        response = await admin_client.delete("/admin/users/1")
+        assert response.status_code == 200
+        assert response.json()["message"] == "User deleted successfully"

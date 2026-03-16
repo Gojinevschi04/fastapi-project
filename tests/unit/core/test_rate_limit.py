@@ -17,8 +17,9 @@ async def test_rate_limit_allows_normal_traffic() -> None:
 @pytest.mark.asyncio
 async def test_rate_limit_blocks_excessive_traffic() -> None:
     # Create a fresh app instance to avoid state from other tests
-    from app.core.rate_limit import RateLimitMiddleware
     from fastapi import FastAPI
+
+    from app.core.rate_limit import RateLimitMiddleware
 
     test_app = FastAPI()
     test_app.add_middleware(RateLimitMiddleware, max_requests=3)
