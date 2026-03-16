@@ -4,9 +4,7 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.core.logging import get_logger
-from sqlalchemy.exc import IntegrityError
-
-from app.modules.templates.exceptions import TemplateInUseError, TemplateNameExistsError, TemplateNotFoundError
+from app.modules.templates.exceptions import TemplateNameExistsError, TemplateNotFoundError
 from app.modules.templates.models import DialogTemplate
 from app.modules.templates.repository import TemplateRepository
 from app.modules.templates.schema import TemplateCreate, TemplateUpdate
@@ -64,9 +62,6 @@ class TemplateService:
         template = await self.template_repository.get_by_id(template_id)
         if not template:
             raise TemplateNotFoundError(f"Template with id {template_id} not found")
-        try:
-            return await self.template_repository.delete(template_id)
-        except IntegrityError as e:
-            raise TemplateInUseError(
-                f"Template '{template.name}' cannot be deleted because it is used by existing tasks"
-            ) from e
+        if not template.is_active:
+            raise TemplateNotFoundError(f"Template with id {template_id} not found")
+        return await self.template_repository.deactivate(template_id)

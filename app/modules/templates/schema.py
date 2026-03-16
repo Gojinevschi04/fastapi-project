@@ -78,5 +78,6 @@ class TemplateResponse(BaseModel):
     name: str
     base_script: str
     required_slots: list[str]
+    is_active: bool
     created_at: datetime
     updated_at: datetime

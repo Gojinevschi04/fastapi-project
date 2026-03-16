@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.schema import MessageResponse
-from app.modules.templates.exceptions import TemplateInUseError, TemplateNameExistsError, TemplateNotFoundError
+from app.modules.templates.exceptions import TemplateNameExistsError, TemplateNotFoundError
 from app.modules.templates.schema import TemplateCreate, TemplateResponse, TemplateUpdate
 from app.modules.templates.service import TemplateService
 from app.modules.users.middleware import get_current_admin_user, get_current_user
@@ -29,6 +29,7 @@ async def create_template_view(
         name=template.name,
         base_script=template.base_script,
         required_slots=template.required_slots,
+        is_active=template.is_active,
         created_at=template.created_at,
         updated_at=template.updated_at,
     )
@@ -48,6 +49,7 @@ async def get_templates_view(
             name=t.name,
             base_script=t.base_script,
             required_slots=t.required_slots,
+            is_active=t.is_active,
             created_at=t.created_at,
             updated_at=t.updated_at,
         )
@@ -71,6 +73,7 @@ async def get_template_view(
         name=template.name,
         base_script=template.base_script,
         required_slots=template.required_slots,
+        is_active=template.is_active,
         created_at=template.created_at,
         updated_at=template.updated_at,
     )
@@ -95,6 +98,7 @@ async def update_template_view(
         name=template.name,
         base_script=template.base_script,
         required_slots=template.required_slots,
+        is_active=template.is_active,
         created_at=template.created_at,
         updated_at=template.updated_at,
     )
@@ -110,7 +114,5 @@ async def delete_template_view(
         await template_service.delete_template(template_id)
     except TemplateNotFoundError as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e)) from e
-    except TemplateInUseError as e:
-        raise HTTPException(status_code=HTTPStatus.CONFLICT, detail=str(e)) from e
 
-    return MessageResponse(message="Template deleted successfully")
+    return MessageResponse(message="Template deactivated successfully")

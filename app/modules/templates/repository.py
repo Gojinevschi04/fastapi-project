@@ -18,21 +18,33 @@ class TemplateRepository(Repository):
         return result.first()
 
     async def get_by_name(self, name: str) -> DialogTemplate | None:
-        result = await self._session.exec(select(DialogTemplate).where(DialogTemplate.name == name))
+        result = await self._session.exec(
+            select(DialogTemplate).where(DialogTemplate.name == name, DialogTemplate.is_active.is_(True))
+        )
         return result.first()
 
     async def get_all(self) -> Sequence[DialogTemplate]:
-        result = await self._session.exec(select(DialogTemplate).order_by(DialogTemplate.name))
+        result = await self._session.exec(
+            select(DialogTemplate).where(DialogTemplate.is_active.is_(True)).order_by(DialogTemplate.name)
+        )
         return result.all()
 
     async def get_all_paginated(
         self, limit: int = 50, offset: int = 0
     ) -> tuple[Sequence[DialogTemplate], int]:
-        query = select(DialogTemplate).order_by(DialogTemplate.name).offset(offset).limit(limit)
+        query = (
+            select(DialogTemplate)
+            .where(DialogTemplate.is_active.is_(True))
+            .order_by(DialogTemplate.name)
+            .offset(offset)
+            .limit(limit)
+        )
         result = await self._session.exec(query)
         templates = result.all()
 
-        count_result = await self._session.exec(select(func.count()).select_from(DialogTemplate))
+        count_result = await self._session.exec(
+            select(func.count()).select_from(DialogTemplate).where(DialogTemplate.is_active.is_(True))
+        )
         total = count_result.one()
 
         return templates, total
@@ -41,6 +53,15 @@ class TemplateRepository(Repository):
         await self._session.commit()
         await self._session.refresh(template)
         return template
+
+    async def deactivate(self, template_id: int) -> bool:
+        template = await self.get_by_id(template_id)
+        if not template:
+            return False
+        template.is_active = False
+        await self._session.commit()
+        await self._session.refresh(template)
+        return True
 
     async def delete(self, template_id: int) -> bool:
         template = await self.get_by_id(template_id)

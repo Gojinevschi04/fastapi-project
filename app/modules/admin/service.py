@@ -1,10 +1,11 @@
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import Depends
-
-from collections.abc import Sequence
+from sqlmodel import select
 
 from app.core.logging import get_logger
+from app.modules.calls.models import CallSession, LogLine
 from app.modules.calls.repository import CallSessionRepository
 from app.modules.tasks.models import Task
 from app.modules.tasks.repository import TaskRepository
@@ -61,4 +62,41 @@ class AdminService:
         return await self.user_repository.update_user_role(user_id, role)
 
     async def delete_user(self, user_id: int) -> bool:
-        return await self.user_repository.delete(user_id)
+        user = await self.user_repository.get_by_id(user_id)
+        if not user:
+            return False
+
+        # Cascade: log_lines → call_sessions → tasks → user
+        session = self.user_repository._session
+
+        # Get all task IDs for this user
+        result = await session.exec(select(Task.id).where(Task.user_id == user_id))
+        task_ids = list(result.all())
+
+        if task_ids:
+            # Get all call session IDs for these tasks
+            result = await session.exec(select(CallSession.id).where(CallSession.task_id.in_(task_ids)))
+            session_ids = list(result.all())
+
+            # Delete log lines for those sessions
+            if session_ids:
+                result = await session.exec(select(LogLine).where(LogLine.session_id.in_(session_ids)))
+                for log_line in result.all():
+                    await session.delete(log_line)
+
+                # Delete call sessions
+                result = await session.exec(select(CallSession).where(CallSession.task_id.in_(task_ids)))
+                for cs in result.all():
+                    await session.delete(cs)
+
+            # Delete tasks
+            result = await session.exec(select(Task).where(Task.user_id == user_id))
+            for task in result.all():
+                await session.delete(task)
+
+        # Delete user
+        await session.delete(user)
+        await session.commit()
+
+        logger.info("Deleted user %d and %d associated tasks", user_id, len(task_ids))
+        return True
