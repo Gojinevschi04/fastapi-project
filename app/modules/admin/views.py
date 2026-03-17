@@ -8,7 +8,7 @@ from app.modules.admin.service import AdminService
 from app.modules.tasks.schema import AdminStatsResponse, TaskListResponse, TaskResponse, TaskStatus
 from app.modules.users.middleware import get_current_admin_user
 from app.modules.users.models import User
-from app.modules.users.schema import UserListResponse, UserResponse, UserRole, UserUpdate
+from app.modules.users.schema import UserListResponse, UserResponse, UserUpdate
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 

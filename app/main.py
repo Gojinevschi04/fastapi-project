@@ -8,6 +8,7 @@ from app.core.rate_limit import RateLimitMiddleware
 from app.modules.admin.views import router as admin_router
 from app.modules.auth.views import router as auth_router
 from app.modules.calls.views import router as calls_router
+from app.modules.feedback.views import router as feedback_router
 from app.modules.files.views import router as files_router
 from app.modules.tasks.views import router as tasks_router
 from app.modules.templates.views import router as templates_router
@@ -23,7 +24,6 @@ def get_application() -> FastAPI:
         redoc_url="/redoc",
     )
 
-    # CORS — configurable origins
     origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
@@ -33,13 +33,9 @@ def get_application() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Request logging
     app.add_middleware(RequestLoggingMiddleware)
-
-    # Rate limiting
     app.add_middleware(RateLimitMiddleware)
 
-    # Routers
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(users_router)
@@ -48,6 +44,7 @@ def get_application() -> FastAPI:
     app.include_router(tasks_router)
     app.include_router(calls_router)
     app.include_router(admin_router)
+    app.include_router(feedback_router)
     app.include_router(webhooks_router)
 
     return app

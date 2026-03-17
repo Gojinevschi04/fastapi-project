@@ -66,35 +66,31 @@ class AdminService:
         if not user:
             return False
 
-        # Cascade: log_lines → call_sessions → tasks → user
+        # TODO: production — move cascade delete into a dedicated repository method
+        # (e.g., UserRepository.delete_with_cascade) to avoid accessing _session directly.
+        # Accessing the private _session breaks encapsulation but is acceptable for MVP.
         session = self.user_repository._session
 
-        # Get all task IDs for this user
         result = await session.exec(select(Task.id).where(Task.user_id == user_id))
         task_ids = list(result.all())
 
         if task_ids:
-            # Get all call session IDs for these tasks
             result = await session.exec(select(CallSession.id).where(CallSession.task_id.in_(task_ids)))
             session_ids = list(result.all())
 
-            # Delete log lines for those sessions
             if session_ids:
                 result = await session.exec(select(LogLine).where(LogLine.session_id.in_(session_ids)))
                 for log_line in result.all():
                     await session.delete(log_line)
 
-                # Delete call sessions
                 result = await session.exec(select(CallSession).where(CallSession.task_id.in_(task_ids)))
                 for cs in result.all():
                     await session.delete(cs)
 
-            # Delete tasks
             result = await session.exec(select(Task).where(Task.user_id == user_id))
             for task in result.all():
                 await session.delete(task)
 
-        # Delete user
         await session.delete(user)
         await session.commit()
 

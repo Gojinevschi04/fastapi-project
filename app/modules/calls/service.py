@@ -16,7 +16,9 @@ from app.modules.tasks.repository import TaskRepository
 
 logger = get_logger(__name__)
 
-# In-memory cache for generated demo audio (task_id → (bytes, content_type))
+# TODO: production — replace with Redis or an LRU cache with TTL. Module-level dict
+# is acceptable for MVP but will leak memory under sustained load and is not shared
+# across multiple workers.
 _demo_audio_cache: dict[int, tuple[bytes, str]] = {}
 
 
@@ -88,25 +90,24 @@ class CallService:
         if not session.recording_uri:
             raise ValueError(f"No recording available for task {task_id}")
 
-        # Try to fetch from Twilio first
         try:
             from app.integrations.twilio_adapter import TwilioAdapter
 
             adapter = TwilioAdapter()
-            audio = await adapter.get_recording_audio(session.recording_uri)
-            return audio, "audio/wav"
+            recording_url = session.recording_uri.replace(".wav", ".mp3")
+            audio = await adapter.get_recording_audio(recording_url)
+            content_type = "audio/mpeg" if recording_url.endswith(".mp3") else "audio/wav"
+            return audio, content_type
         except Exception:
             logger.warning(
                 "Could not fetch recording from Twilio for task %d, generating demo audio from transcript",
                 task_id,
             )
 
-        # Return cached demo audio if available
         if task_id in _demo_audio_cache:
             logger.debug("Serving cached demo audio for task %d", task_id)
             return _demo_audio_cache[task_id]
 
-        # Fallback: generate speech from transcript lines using TTS
         from app.core.audio import generate_demo_conversation_mp3_async, generate_demo_wav
 
         log_lines = await self.log_line_repository.get_by_session_id(session.id)
