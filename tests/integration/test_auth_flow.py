@@ -223,3 +223,73 @@ async def test_register_password_too_long(client: AsyncClient) -> None:
         "password": "x" * 129,
     })
     assert response.status_code == 422
+
+
+# --- Reset Password Confirm ---
+
+
+@pytest.mark.asyncio
+async def test_reset_password_confirm_success(client: AsyncClient) -> None:
+    with patch("app.modules.auth.auth_handler.decode_token") as mock_decode, \
+         patch("app.modules.users.repository.UserRepository.get_by_id") as mock_get, \
+         patch("app.modules.users.repository.UserRepository.update") as mock_update:
+        mock_decode.return_value = {"sub": "1", "type": "reset"}
+        mock_user = MagicMock()
+        mock_user.id = 1
+        mock_user.email = "user@example.com"
+        mock_get.return_value = mock_user
+        mock_update.return_value = mock_user
+
+        response = await client.post("/auth/reset-password/confirm", json={
+            "token": "valid-reset-token",
+            "new_password": "newpassword123",
+        })
+        assert response.status_code == 200
+        assert "reset successfully" in response.json()["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_reset_password_confirm_invalid_token(client: AsyncClient) -> None:
+    with patch("app.modules.auth.auth_handler.decode_token") as mock_decode:
+        mock_decode.side_effect = Exception("Invalid token")
+        response = await client.post("/auth/reset-password/confirm", json={
+            "token": "bad-token",
+            "new_password": "newpassword123",
+        })
+        assert response.status_code == 400
+        assert "invalid" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_reset_password_confirm_wrong_token_type(client: AsyncClient) -> None:
+    with patch("app.modules.auth.auth_handler.decode_token") as mock_decode:
+        mock_decode.return_value = {"sub": "1", "type": "access"}  # not "reset"
+        response = await client.post("/auth/reset-password/confirm", json={
+            "token": "access-token-not-reset",
+            "new_password": "newpassword123",
+        })
+        assert response.status_code == 400
+        assert "token type" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_reset_password_confirm_user_not_found(client: AsyncClient) -> None:
+    with patch("app.modules.auth.auth_handler.decode_token") as mock_decode, \
+         patch("app.modules.users.repository.UserRepository.get_by_id") as mock_get:
+        mock_decode.return_value = {"sub": "999", "type": "reset"}
+        mock_get.return_value = None
+
+        response = await client.post("/auth/reset-password/confirm", json={
+            "token": "valid-reset-token",
+            "new_password": "newpassword123",
+        })
+        assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_reset_password_confirm_password_too_short(client: AsyncClient) -> None:
+    response = await client.post("/auth/reset-password/confirm", json={
+        "token": "any-token",
+        "new_password": "short",
+    })
+    assert response.status_code == 422

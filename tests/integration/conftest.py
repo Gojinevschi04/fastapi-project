@@ -63,7 +63,7 @@ async def override_get_db_session() -> AsyncGenerator[AsyncMock, None]:
     session.close = AsyncMock()
     try:
         yield session
-    except:
+    except Exception:
         await session.rollback()
         raise
     finally:

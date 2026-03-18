@@ -2,10 +2,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.modules.tasks.exceptions import InvalidTaskDataError, TaskNotCancellableError, TaskNotFoundError
+from app.modules.tasks.exceptions import (
+    InvalidTaskDataError,
+    TaskNotCancellableError,
+    TaskNotEditableError,
+    TaskNotFoundError,
+)
 from app.modules.tasks.models import Task
 from app.modules.tasks.repository import TaskRepository
-from app.modules.tasks.schema import TaskCreate, TaskStatus
+from app.modules.tasks.schema import TaskCreate, TaskEditRequest, TaskStatus
 from app.modules.tasks.service import TaskService
 from app.modules.templates.exceptions import TemplateNotFoundError
 from app.modules.templates.models import DialogTemplate
@@ -253,3 +258,110 @@ async def test_cancel_completed_task(mock_task: Task) -> None:
 
     with pytest.raises(TaskNotCancellableError):
         await service.cancel_task(1, user_id=1)
+
+
+# --- edit_task tests ---
+
+
+@pytest.mark.asyncio
+async def test_edit_task_success(mock_task: Task, mock_template: DialogTemplate) -> None:
+    """Edit a pending task's phone number."""
+    mock_task.status = TaskStatus.PENDING
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=mock_task)
+    mock_task_repo.update = AsyncMock(return_value=mock_task)
+    mock_template_repo = MagicMock(spec=TemplateRepository)
+
+    service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
+    data = TaskEditRequest(target_phone="+37399999999")
+    result = await service.edit_task(1, user_id=1, data=data)
+
+    assert result.target_phone == "+37399999999"
+    mock_task_repo.update.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_edit_task_not_found() -> None:
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=None)
+    mock_template_repo = MagicMock(spec=TemplateRepository)
+
+    service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
+    data = TaskEditRequest(target_phone="+37399999999")
+
+    with pytest.raises(TaskNotFoundError):
+        await service.edit_task(999, user_id=1, data=data)
+
+
+@pytest.mark.asyncio
+async def test_edit_task_not_editable_in_progress(mock_task: Task) -> None:
+    mock_task.status = TaskStatus.IN_PROGRESS
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=mock_task)
+    mock_template_repo = MagicMock(spec=TemplateRepository)
+
+    service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
+    data = TaskEditRequest(target_phone="+37399999999")
+
+    with pytest.raises(TaskNotEditableError):
+        await service.edit_task(1, user_id=1, data=data)
+
+
+@pytest.mark.asyncio
+async def test_edit_task_not_editable_completed(mock_task: Task) -> None:
+    mock_task.status = TaskStatus.COMPLETED
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=mock_task)
+    mock_template_repo = MagicMock(spec=TemplateRepository)
+
+    service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
+    data = TaskEditRequest(target_phone="+37399999999")
+
+    with pytest.raises(TaskNotEditableError):
+        await service.edit_task(1, user_id=1, data=data)
+
+
+@pytest.mark.asyncio
+async def test_edit_task_not_editable_failed(mock_task: Task) -> None:
+    mock_task.status = TaskStatus.FAILED
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=mock_task)
+    mock_template_repo = MagicMock(spec=TemplateRepository)
+
+    service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
+    data = TaskEditRequest(target_phone="+37399999999")
+
+    with pytest.raises(TaskNotEditableError):
+        await service.edit_task(1, user_id=1, data=data)
+
+
+@pytest.mark.asyncio
+async def test_edit_task_update_slot_data(mock_task: Task, mock_template: DialogTemplate) -> None:
+    """Updating slot_data validates against template required_slots."""
+    mock_task.status = TaskStatus.PENDING
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=mock_task)
+    mock_task_repo.update = AsyncMock(return_value=mock_task)
+    mock_template_repo = MagicMock(spec=TemplateRepository)
+    mock_template_repo.get_by_id = AsyncMock(return_value=mock_template)
+
+    service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
+    data = TaskEditRequest(slot_data={"preferred_date": "2026-04-01", "preferred_time": "14:00"})
+    result = await service.edit_task(1, user_id=1, data=data)
+
+    assert result.slot_data == {"preferred_date": "2026-04-01", "preferred_time": "14:00"}
+
+
+@pytest.mark.asyncio
+async def test_edit_task_missing_required_slots(mock_task: Task, mock_template: DialogTemplate) -> None:
+    mock_task.status = TaskStatus.PENDING
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=mock_task)
+    mock_template_repo = MagicMock(spec=TemplateRepository)
+    mock_template_repo.get_by_id = AsyncMock(return_value=mock_template)
+
+    service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
+    data = TaskEditRequest(slot_data={"preferred_date": "2026-04-01"})  # missing preferred_time
+
+    with pytest.raises(InvalidTaskDataError, match="Missing required slots"):
+        await service.edit_task(1, user_id=1, data=data)

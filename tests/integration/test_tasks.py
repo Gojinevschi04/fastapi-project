@@ -3,7 +3,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 from httpx import AsyncClient
 
-from app.modules.tasks.exceptions import InvalidTaskDataError, TaskNotCancellableError, TaskNotFoundError
+from app.modules.tasks.exceptions import (
+    InvalidTaskDataError,
+    TaskNotCancellableError,
+    TaskNotEditableError,
+    TaskNotFoundError,
+)
 from app.modules.tasks.schema import TaskStatsResponse, TaskStatus
 from app.modules.templates.exceptions import TemplateNotFoundError
 
@@ -308,4 +313,58 @@ async def test_cancel_task_unauthenticated(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_execute_task_unauthenticated(client: AsyncClient) -> None:
     response = await client.post("/tasks/1/execute")
+    assert response.status_code == 401
+
+
+# --- Edit task ---
+
+
+@pytest.mark.asyncio
+async def test_edit_task_success(authenticated_client: AsyncClient) -> None:
+    with patch("app.modules.tasks.service.TaskService.edit_task") as mock_edit:
+        mock_task = MagicMock()
+        mock_task.id = 1
+        mock_task.target_phone = "+37399999999"
+        mock_task.status = TaskStatus.PENDING
+        mock_task.template_id = 1
+        mock_task.slot_data = {}
+        mock_task.scheduled_time = None
+        mock_task.summary = None
+        mock_task.error_reason = None
+        mock_task.created_at = "2026-01-01T00:00:00"
+        mock_task.updated_at = "2026-01-01T00:00:00"
+        mock_edit.return_value = mock_task
+
+        response = await authenticated_client.put("/tasks/1", json={"target_phone": "+37399999999"})
+        assert response.status_code == 200
+        assert response.json()["target_phone"] == "+37399999999"
+
+
+@pytest.mark.asyncio
+async def test_edit_task_not_found(authenticated_client: AsyncClient) -> None:
+    with patch("app.modules.tasks.service.TaskService.edit_task") as mock_edit:
+        mock_edit.side_effect = TaskNotFoundError("Not found")
+        response = await authenticated_client.put("/tasks/999", json={"target_phone": "+37399999999"})
+        assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_edit_task_not_editable(authenticated_client: AsyncClient) -> None:
+    with patch("app.modules.tasks.service.TaskService.edit_task") as mock_edit:
+        mock_edit.side_effect = TaskNotEditableError("Cannot edit")
+        response = await authenticated_client.put("/tasks/1", json={"target_phone": "+37399999999"})
+        assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_edit_task_invalid_data(authenticated_client: AsyncClient) -> None:
+    with patch("app.modules.tasks.service.TaskService.edit_task") as mock_edit:
+        mock_edit.side_effect = InvalidTaskDataError("Missing required slots")
+        response = await authenticated_client.put("/tasks/1", json={"slot_data": {}})
+        assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_edit_task_unauthenticated(client: AsyncClient) -> None:
+    response = await client.put("/tasks/1", json={"target_phone": "+37399999999"})
     assert response.status_code == 401

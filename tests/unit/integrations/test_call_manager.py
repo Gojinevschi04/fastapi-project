@@ -253,13 +253,10 @@ async def test_build_system_prompt() -> None:
 
 @pytest.mark.asyncio
 async def test_is_conversation_complete() -> None:
-    task_repo = MagicMock(spec=TaskRepository)
-    template_repo = MagicMock(spec=TemplateRepository)
-    session_repo = MagicMock(spec=CallSessionRepository)
-    log_repo = MagicMock(spec=LogLineRepository)
+    from app.integrations.conversation import ConversationManager
 
-    manager = _make_manager(task_repo, template_repo, session_repo, log_repo)
+    conv = ConversationManager(max_turns=10, max_noise_retries=3)
 
-    assert manager._is_conversation_complete("Great, confirmed! [OBJECTIVE_ACHIEVED]") is True
-    assert manager._is_conversation_complete("Sorry, no availability. [OBJECTIVE_FAILED]") is True
-    assert manager._is_conversation_complete("When would you prefer?") is False
+    assert conv.is_complete("Great, confirmed! [OBJECTIVE_ACHIEVED]") is True
+    assert conv.is_complete("Sorry, no availability. [OBJECTIVE_FAILED]") is True
+    assert conv.is_complete("When would you prefer?") is False

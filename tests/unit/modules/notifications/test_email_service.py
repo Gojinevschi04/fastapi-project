@@ -321,3 +321,85 @@ async def test_all_emails_use_branded_template() -> None:
         assert "<!DOCTYPE html>" in body_html
         assert "Quiet Call AI" in body_html
         assert "Open Quiet Call AI" in body_html
+
+
+# ---- Feedback emails ----
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_mock_settings")
+async def test_send_feedback() -> None:
+    from app.modules.notifications.email_service import EmailService
+
+    service = EmailService()
+    service.send_email = AsyncMock(return_value=True)
+
+    with patch("app.modules.notifications.email_service.settings") as mock_settings:
+        mock_settings.CORS_ORIGINS = "http://localhost:3000"
+        mock_settings.BASE_URL = "http://localhost:8000"
+        mock_settings.FEEDBACK_EMAILS = "admin1@test.com, admin2@test.com"
+
+        result = await service.send_feedback("John Doe", "john@example.com", "Great app!")
+
+    assert result is True
+    assert service.send_email.call_count == 2
+    first_call = service.send_email.call_args_list[0]
+    to_email, subject, body_html = first_call[0]
+    assert to_email == "admin1@test.com"
+    assert "Feedback" in subject
+    assert "John Doe" in body_html
+    assert "john@example.com" in body_html
+    assert "Great app!" in body_html
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_mock_settings")
+async def test_send_feedback_no_recipients() -> None:
+    from app.modules.notifications.email_service import EmailService
+
+    service = EmailService()
+    service.send_email = AsyncMock(return_value=True)
+
+    with patch("app.modules.notifications.email_service.settings") as mock_settings:
+        mock_settings.FEEDBACK_EMAILS = ""
+
+        result = await service.send_feedback("John", "john@test.com", "Hello")
+
+    assert result is False
+    service.send_email.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_mock_settings")
+async def test_send_feedback_partial_failure() -> None:
+    from app.modules.notifications.email_service import EmailService
+
+    service = EmailService()
+    service.send_email = AsyncMock(side_effect=[True, False])
+
+    with patch("app.modules.notifications.email_service.settings") as mock_settings:
+        mock_settings.CORS_ORIGINS = "http://localhost:3000"
+        mock_settings.BASE_URL = "http://localhost:8000"
+        mock_settings.FEEDBACK_EMAILS = "ok@test.com, fail@test.com"
+
+        result = await service.send_feedback("Test", "t@test.com", "Hello world!")
+
+    assert result is False
+
+
+# ---- Multi-language ----
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_mock_settings")
+async def test_send_welcome_russian() -> None:
+    from app.modules.notifications.email_service import EmailService
+
+    service = EmailService()
+    service.send_email = AsyncMock(return_value=True)
+
+    result = await service.send_welcome("user@example.com", language="ru")
+
+    assert result is True
+    _, subject, body_html = service.send_email.call_args[0]
+    assert "Quiet Call AI" in subject
