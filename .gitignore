@@ -1,12 +1,33 @@
-# IntelliJ project files
-.idea
-venv/
-.env
-storage
-logs
+# Python
 __pycache__/
-plans/
-CLAUDE.md
-.claude/
+*.pyc
+*.pyo
 .coverage
+.venv/
+venv/
+
+# IDE
+.idea/
+*.iml
+
+# Environment & secrets
+.env
+
+# Storage & logs
+storage/
+logs/
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Plans & docs (local only)
+plans/
+
+# OS files
+.DS_Store
 nul
+
+# Test files
+*.http
+test_main.http
