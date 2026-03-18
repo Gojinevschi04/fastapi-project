@@ -21,68 +21,78 @@ from app.modules.tasks.schema import TaskStatus
 from app.modules.templates.models import DialogTemplate
 from app.modules.users.models import User
 from app.modules.users.schema import UserRole
-
-SECONDS_BETWEEN_LINES = 8
+from app.scripts.constants import (
+    ADMIN_EMAIL_PRIMARY,
+    ADMIN_EMAIL_SECONDARY,
+    ADMIN_PASSWORD,
+    BASE_CALL_DURATION_SECONDS,
+    CALL_DURATION_VARIATION_FACTOR,
+    DEMO_RECORDING_URL_TEMPLATE,
+    MAX_CALL_DURATION_VARIATION,
+    MIN_TASK_COUNT_TO_SKIP,
+    SECONDS_BETWEEN_TRANSCRIPT_LINES,
+    USER_PASSWORD,
+)
 
 DEMO_USERS = [
     {
-        "email": "ana.gojinevschi@isa.utm.md",
+        "email": ADMIN_EMAIL_PRIMARY,
         "role": UserRole.ADMIN,
-        "password": "admin1234",
+        "password": ADMIN_PASSWORD,
         "phone_number": "+37360000001",
     },
     {
-        "email": "annagojinevschi@gmail.com",
+        "email": ADMIN_EMAIL_SECONDARY,
         "role": UserRole.ADMIN,
-        "password": "admin1234",
+        "password": ADMIN_PASSWORD,
         "phone_number": "+37360000010",
     },
     {
         "email": "ana@example.com",
         "role": UserRole.USER,
-        "password": "password123",
+        "password": USER_PASSWORD,
         "phone_number": "+37360000002",
     },
     {
         "email": "john@example.com",
         "role": UserRole.USER,
-        "password": "password123",
+        "password": USER_PASSWORD,
         "phone_number": "+37360000003",
     },
     {
         "email": "maria@example.com",
         "role": UserRole.USER,
-        "password": "password123",
+        "password": USER_PASSWORD,
         "phone_number": "+37360000004",
     },
     {
         "email": "alex@example.com",
         "role": UserRole.USER,
-        "password": "password123",
+        "password": USER_PASSWORD,
         "phone_number": "+37360000005",
     },
     {
         "email": "elena@example.com",
         "role": UserRole.USER,
-        "password": "password123",
+        "password": USER_PASSWORD,
         "phone_number": "+37360000006",
     },
     {
         "email": "dmitri@example.com",
         "role": UserRole.USER,
-        "password": "password123",
+        "password": USER_PASSWORD,
         "phone_number": "+37360000007",
     },
     {
         "email": "natalia@example.com",
         "role": UserRole.USER,
-        "password": "password123",
+        "password": USER_PASSWORD,
         "phone_number": "+37360000008",
     },
     {
         "email": "victor@example.com",
         "role": UserRole.USER,
-        "password": "password123",
+        "password": USER_PASSWORD,
         "phone_number": "+37360000009",
     },
 ]
@@ -121,7 +131,7 @@ def _get_template_id(
 async def seed_tasks(session: AsyncSession, users: dict[str, int]) -> list[Task]:
     result = await session.exec(select(func.count()).select_from(Task))
     count = result.one()
-    if count >= 10:
+    if count >= MIN_TASK_COUNT_TO_SKIP:
         print(f"  SKIP tasks: {count} tasks already exist")
         return []
 
@@ -737,13 +747,13 @@ async def seed_call_sessions(
 
     for task_index, (task_id, _task_status) in enumerate(eligible_tasks):
         now = datetime.now()
-        duration = 45 + (task_id * 7) % 120
+        duration = BASE_CALL_DURATION_SECONDS + (task_id * CALL_DURATION_VARIATION_FACTOR) % MAX_CALL_DURATION_VARIATION
 
         call_session = CallSession(
             task_id=task_id,
             start_time=now - timedelta(days=task_id % 10, hours=task_id % 5),
             duration=duration,
-            recording_uri=f"https://api.twilio.com/2010-04-01/Accounts/DEMO/Recordings/RE{task_id:06d}.wav",
+            recording_uri=DEMO_RECORDING_URL_TEMPLATE.format(task_id=task_id),
         )
         session.add(call_session)
         await session.commit()
@@ -757,7 +767,7 @@ async def seed_call_sessions(
         for line_index, transcript_line in enumerate(transcript_lines):
             log = LogLine(
                 session_id=call_session.id,
-                timestamp=transcript_start_time + timedelta(seconds=line_index * SECONDS_BETWEEN_LINES),
+                timestamp=transcript_start_time + timedelta(seconds=line_index * SECONDS_BETWEEN_TRANSCRIPT_LINES),
                 speaker=transcript_line["speaker"],
                 text=transcript_line["text"],
                 detected_intent=transcript_line["intent"],
@@ -783,16 +793,16 @@ async def seed() -> None:
 
     print("\nDemo seed completed.")
     print("\nDemo accounts:")
-    print("  Admin:      ana.gojinevschi@isa.utm.md / admin1234")
-    print("  Admin:      annagojinevschi@gmail.com / admin1234")
-    print("  Users:      ana@example.com / password123")
-    print("              john@example.com / password123")
-    print("              maria@example.com / password123")
-    print("              alex@example.com / password123")
-    print("              elena@example.com / password123")
-    print("              dmitri@example.com / password123")
-    print("              natalia@example.com / password123")
-    print("              victor@example.com / password123")
+    print(f"  Admin:      {ADMIN_EMAIL_PRIMARY} / {ADMIN_PASSWORD}")
+    print(f"  Admin:      {ADMIN_EMAIL_SECONDARY} / {ADMIN_PASSWORD}")
+    print(f"  Users:      ana@example.com / {USER_PASSWORD}")
+    print(f"              john@example.com / {USER_PASSWORD}")
+    print(f"              maria@example.com / {USER_PASSWORD}")
+    print(f"              alex@example.com / {USER_PASSWORD}")
+    print(f"              elena@example.com / {USER_PASSWORD}")
+    print(f"              dmitri@example.com / {USER_PASSWORD}")
+    print(f"              natalia@example.com / {USER_PASSWORD}")
+    print(f"              victor@example.com / {USER_PASSWORD}")
 
 
 def main() -> None:

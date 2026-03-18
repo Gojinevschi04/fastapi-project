@@ -6,6 +6,7 @@ from twilio.rest import Client
 from twilio.twiml.voice_response import Gather, VoiceResponse
 
 from app.core.config import settings
+from app.core.constants import CALL_ANSWER_TIMEOUT_SECONDS, GATHER_TIMEOUT_SECONDS
 from app.core.logging import get_logger
 from app.integrations.interfaces import IVoiceProvider
 
@@ -131,7 +132,7 @@ class TwilioAdapter(IVoiceProvider):
         gather = Gather(
             input="speech",
             action=f"{callback_url}/gather",
-            timeout=8,
+            timeout=GATHER_TIMEOUT_SECONDS,
             speech_timeout="auto",
             language=lang_cfg["gather_lang"],
         )
@@ -154,7 +155,7 @@ class TwilioAdapter(IVoiceProvider):
             raise
 
         try:
-            speech_text = await asyncio.wait_for(future, timeout=30)
+            speech_text = await asyncio.wait_for(future, timeout=CALL_ANSWER_TIMEOUT_SECONDS)
             logger.info("Received speech from call %s: %.60s...", call_sid, speech_text)
             return speech_text
         except TimeoutError:
@@ -188,7 +189,7 @@ class TwilioAdapter(IVoiceProvider):
         gather = Gather(
             input="speech",
             action=f"{callback_url}/gather",
-            timeout=8,
+            timeout=GATHER_TIMEOUT_SECONDS,
             speech_timeout="auto",
             language="en-US",
         )

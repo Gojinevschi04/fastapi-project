@@ -4,6 +4,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, field_validator
 
+from app.core.constants import MAX_SLOT_COUNT, MAX_SLOT_KEY_LENGTH, MAX_SLOT_VALUE_LENGTH
+
 
 class TaskStatus(StrEnum):
     PENDING = "pending"
@@ -32,13 +34,13 @@ class TaskBase(BaseModel):
     @field_validator("slot_data")
     @classmethod
     def validate_slot_data(cls, v: dict[str, str]) -> dict[str, str]:
-        if len(v) > 20:
-            raise ValueError("Maximum 20 slot values allowed")
+        if len(v) > MAX_SLOT_COUNT:
+            raise ValueError(f"Maximum {MAX_SLOT_COUNT} slot values allowed")
         for key, value in v.items():
-            if len(key) > 50:
-                raise ValueError(f"Slot key '{key[:20]}...' exceeds 50 characters")
-            if len(value) > 500:
-                raise ValueError(f"Slot value for '{key}' exceeds 500 characters")
+            if len(key) > MAX_SLOT_KEY_LENGTH:
+                raise ValueError(f"Slot key '{key[:20]}...' exceeds {MAX_SLOT_KEY_LENGTH} characters")
+            if len(value) > MAX_SLOT_VALUE_LENGTH:
+                raise ValueError(f"Slot value for '{key}' exceeds {MAX_SLOT_VALUE_LENGTH} characters")
         return v
 
     @field_validator("scheduled_time")
@@ -79,13 +81,13 @@ class TaskEditRequest(BaseModel):
     @classmethod
     def validate_slot_data(cls, v: dict[str, str] | None) -> dict[str, str] | None:
         if v is not None:
-            if len(v) > 20:
-                raise ValueError("Maximum 20 slot values allowed")
+            if len(v) > MAX_SLOT_COUNT:
+                raise ValueError(f"Maximum {MAX_SLOT_COUNT} slot values allowed")
             for key, value in v.items():
-                if len(key) > 50:
-                    raise ValueError(f"Slot key '{key[:20]}...' exceeds 50 characters")
-                if len(value) > 500:
-                    raise ValueError(f"Slot value for '{key}' exceeds 500 characters")
+                if len(key) > MAX_SLOT_KEY_LENGTH:
+                    raise ValueError(f"Slot key '{key[:20]}...' exceeds {MAX_SLOT_KEY_LENGTH} characters")
+                if len(value) > MAX_SLOT_VALUE_LENGTH:
+                    raise ValueError(f"Slot value for '{key}' exceeds {MAX_SLOT_VALUE_LENGTH} characters")
         return v
 
 

@@ -24,7 +24,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession | Any, Any]:
     async with async_session() as session:
         try:
             yield session
-        except:
+        except Exception:
             await session.rollback()
             raise
         finally:

@@ -2,6 +2,8 @@ import re
 
 from pydantic import BaseModel, EmailStr, field_validator
 
+from app.core.constants import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
+
 PHONE_REGEX = re.compile(r"^\+?[1-9]\d{7,14}$")
 
 
@@ -12,8 +14,8 @@ class LoginRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password_length(cls, v: str) -> str:
-        if len(v) > 128:
-            raise ValueError("Password must be at most 128 characters")
+        if len(v) > PASSWORD_MAX_LENGTH:
+            raise ValueError(f"Password must be at most {PASSWORD_MAX_LENGTH} characters")
         return v
 
 
@@ -25,10 +27,10 @@ class RegisterRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        if len(v) > 128:
-            raise ValueError("Password must be at most 128 characters")
+        if len(v) < PASSWORD_MIN_LENGTH:
+            raise ValueError(f"Password must be at least {PASSWORD_MIN_LENGTH} characters")
+        if len(v) > PASSWORD_MAX_LENGTH:
+            raise ValueError(f"Password must be at most {PASSWORD_MAX_LENGTH} characters")
         return v
 
     @field_validator("phone_number")
@@ -60,8 +62,8 @@ class PasswordResetConfirm(BaseModel):
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        if len(v) > 128:
-            raise ValueError("Password must be at most 128 characters")
+        if len(v) < PASSWORD_MIN_LENGTH:
+            raise ValueError(f"Password must be at least {PASSWORD_MIN_LENGTH} characters")
+        if len(v) > PASSWORD_MAX_LENGTH:
+            raise ValueError(f"Password must be at most {PASSWORD_MAX_LENGTH} characters")
         return v

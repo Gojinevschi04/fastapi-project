@@ -2,6 +2,15 @@ from datetime import datetime
 
 from pydantic import BaseModel, field_validator
 
+from app.core.constants import (
+    MAX_SLOT_COUNT,
+    MAX_SLOT_KEY_LENGTH,
+    TEMPLATE_NAME_MAX_LENGTH,
+    TEMPLATE_NAME_MIN_LENGTH,
+    TEMPLATE_SCRIPT_MAX_LENGTH,
+    TEMPLATE_SCRIPT_MIN_LENGTH,
+)
+
 SUPPORTED_LANGUAGES = ("en", "ru", "ro")
 
 
@@ -23,32 +32,32 @@ class TemplateBase(BaseModel):
     @classmethod
     def validate_name(cls, v: str) -> str:
         v = v.strip()
-        if len(v) < 2:
-            raise ValueError("Name must be at least 2 characters")
-        if len(v) > 100:
-            raise ValueError("Name must be at most 100 characters")
+        if len(v) < TEMPLATE_NAME_MIN_LENGTH:
+            raise ValueError(f"Name must be at least {TEMPLATE_NAME_MIN_LENGTH} characters")
+        if len(v) > TEMPLATE_NAME_MAX_LENGTH:
+            raise ValueError(f"Name must be at most {TEMPLATE_NAME_MAX_LENGTH} characters")
         return v
 
     @field_validator("base_script")
     @classmethod
     def validate_base_script(cls, v: str) -> str:
         v = v.strip()
-        if len(v) < 10:
-            raise ValueError("Base script must be at least 10 characters")
-        if len(v) > 5000:
-            raise ValueError("Base script must be at most 5000 characters")
+        if len(v) < TEMPLATE_SCRIPT_MIN_LENGTH:
+            raise ValueError(f"Base script must be at least {TEMPLATE_SCRIPT_MIN_LENGTH} characters")
+        if len(v) > TEMPLATE_SCRIPT_MAX_LENGTH:
+            raise ValueError(f"Base script must be at most {TEMPLATE_SCRIPT_MAX_LENGTH} characters")
         return v
 
     @field_validator("required_slots")
     @classmethod
     def validate_required_slots(cls, v: list[str]) -> list[str]:
-        if len(v) > 20:
-            raise ValueError("Maximum 20 required slots allowed")
+        if len(v) > MAX_SLOT_COUNT:
+            raise ValueError(f"Maximum {MAX_SLOT_COUNT} required slots allowed")
         for slot in v:
             if not slot.strip():
                 raise ValueError("Slot names cannot be empty")
-            if len(slot) > 50:
-                raise ValueError("Slot name must be at most 50 characters")
+            if len(slot) > MAX_SLOT_KEY_LENGTH:
+                raise ValueError(f"Slot name must be at most {MAX_SLOT_KEY_LENGTH} characters")
         return v
 
 
@@ -66,10 +75,10 @@ class TemplateUpdate(BaseModel):
     def validate_name(cls, v: str | None) -> str | None:
         if v is not None:
             v = v.strip()
-            if len(v) < 2:
-                raise ValueError("Name must be at least 2 characters")
-            if len(v) > 100:
-                raise ValueError("Name must be at most 100 characters")
+            if len(v) < TEMPLATE_NAME_MIN_LENGTH:
+                raise ValueError(f"Name must be at least {TEMPLATE_NAME_MIN_LENGTH} characters")
+            if len(v) > TEMPLATE_NAME_MAX_LENGTH:
+                raise ValueError(f"Name must be at most {TEMPLATE_NAME_MAX_LENGTH} characters")
         return v
 
     @field_validator("base_script")
@@ -77,10 +86,10 @@ class TemplateUpdate(BaseModel):
     def validate_base_script(cls, v: str | None) -> str | None:
         if v is not None:
             v = v.strip()
-            if len(v) < 10:
-                raise ValueError("Base script must be at least 10 characters")
-            if len(v) > 5000:
-                raise ValueError("Base script must be at most 5000 characters")
+            if len(v) < TEMPLATE_SCRIPT_MIN_LENGTH:
+                raise ValueError(f"Base script must be at least {TEMPLATE_SCRIPT_MIN_LENGTH} characters")
+            if len(v) > TEMPLATE_SCRIPT_MAX_LENGTH:
+                raise ValueError(f"Base script must be at most {TEMPLATE_SCRIPT_MAX_LENGTH} characters")
         return v
 
 

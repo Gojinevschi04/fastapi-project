@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from app.core.constants import WAV_HEADER
 from app.core.logging import get_logger
 from app.modules.calls.exceptions import CallSessionNotFoundError
 from app.modules.calls.models import CallSession
@@ -123,7 +124,7 @@ class CallService:
                 logger.exception("TTS generation failed for task %d", task_id)
                 audio = b""
 
-            if audio and not audio[:4].startswith(b"RIFF"):
+            if audio and not audio[:4].startswith(WAV_HEADER):
                 logger.info("TTS succeeded for task %d: %d bytes MP3", task_id, len(audio))
                 _demo_audio_cache[task_id] = (audio, "audio/mpeg")
                 return audio, "audio/mpeg"

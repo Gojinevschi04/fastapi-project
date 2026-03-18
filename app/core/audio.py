@@ -11,6 +11,7 @@ import random
 import struct
 import wave
 
+from app.core.constants import AUDIO_SAMPLE_16BIT_MAX, AUDIO_SAMPLE_16BIT_MIN, FADE_DURATION_SECONDS
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -36,9 +37,13 @@ def generate_demo_wav(duration_seconds: int = 5, sample_rate: int = 16000) -> by
             t = i / sample_rate
             hum = 80 * math.sin(2 * math.pi * 60 * t)
             noise = random.gauss(0, 60)
-            fade = min(t / 0.3, 1.0) * min((duration_seconds - t) / 0.3, 1.0) if duration_seconds > 0 else 0
+            fade = (
+                min(t / FADE_DURATION_SECONDS, 1.0) * min((duration_seconds - t) / FADE_DURATION_SECONDS, 1.0)
+                if duration_seconds > 0
+                else 0
+            )
             value = int(fade * (hum + noise))
-            value = max(-32768, min(32767, value))
+            value = max(AUDIO_SAMPLE_16BIT_MIN, min(AUDIO_SAMPLE_16BIT_MAX, value))
             frames.append(struct.pack("<h", value))
 
         wav.writeframes(b"".join(frames))

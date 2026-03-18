@@ -3,15 +3,15 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from app.core.constants import CALL_ANSWER_TIMEOUT_SECONDS
 from app.core.logging import get_logger
 from app.integrations.conversation import ConversationManager
 from app.integrations.interfaces import ILLMProvider
 from app.integrations.openai_adapter import OpenAIAdapter
 from app.integrations.prompt_builder import PromptBuilder
 from app.integrations.twilio_adapter import TwilioAdapter
-from app.modules.calls.models import CallSession, LogLine
+from app.modules.calls.models import CallSession
 from app.modules.calls.repository import CallSessionRepository, LogLineRepository
-from app.modules.calls.schema import Speaker
 from app.modules.notifications.post_call import PostCallProcessor
 from app.modules.tasks.models import Task
 from app.modules.tasks.repository import TaskRepository
@@ -154,9 +154,11 @@ class CallManager:
 
             interlocutor_text = await self._voice.say_and_gather(call_sid, agent_reply, callback_url, lang)
 
-    async def _wait_for_answer(self, call_sid: str, max_wait: int = 30) -> None:
+    async def _wait_for_answer(self, call_sid: str, max_wait: int = CALL_ANSWER_TIMEOUT_SECONDS) -> None:
         """Poll call status until it's answered or fails."""
         import asyncio
+
+        from app.core.constants import CALL_STATUS_POLL_INTERVAL_SECONDS
 
         for _ in range(max_wait):
             status = await self._voice.get_call_status(call_sid)
@@ -165,7 +167,7 @@ class CallManager:
                 return
             if status in ("completed", "busy", "no-answer", "canceled", "failed"):
                 raise RuntimeError(f"Call ended before being answered (status: {status})")
-            await asyncio.sleep(1)
+            await asyncio.sleep(CALL_STATUS_POLL_INTERVAL_SECONDS)
 
         raise RuntimeError("Call was not answered within timeout")
 
@@ -176,31 +178,6 @@ class CallManager:
         return await self._llm.generate_response(
             [{"role": "user", "content": f"Conversation:\n{conv.format_history()}"}],
             PromptBuilder.build_summary_prompt(language),
-        )
-
-    def _format_history(self, conversation_history: list[dict[str, str]]) -> str:
-        lines = []
-        for msg in conversation_history:
-            role = "Agent" if msg["role"] == "assistant" else "Interlocutor"
-            lines.append(f"{role}: {msg['content']}")
-        return "\n".join(lines)
-
-    def _is_conversation_complete(self, agent_reply: str) -> bool:
-        return "[OBJECTIVE_ACHIEVED]" in agent_reply or "[OBJECTIVE_FAILED]" in agent_reply
-
-    def _create_log_line(
-        self,
-        session_id: int,
-        speaker: Speaker,
-        text: str,
-        detected_intent: str | None = None,
-    ) -> LogLine:
-        return LogLine(
-            session_id=session_id,
-            timestamp=datetime.now(),
-            speaker=speaker,
-            text=text,
-            detected_intent=detected_intent,
         )
 
     def _get_callback_base(self) -> str:

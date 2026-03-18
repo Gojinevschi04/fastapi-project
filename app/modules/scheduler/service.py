@@ -12,29 +12,24 @@ from app.modules.tasks.schema import TaskStatus
 logger = get_logger(__name__)
 
 POLL_INTERVAL_SECONDS = 30
-
-
 RETRYABLE_ERROR_KEYWORDS = ["connection", "timeout", "network", "refused", "retries"]
 
 
 async def get_due_tasks(session: AsyncSession) -> list[tuple[int, int]]:
-    """Find scheduled tasks past their scheduled_time. Returns list of (task_id, user_id)."""
-    now = datetime.now()
+    """Find scheduled tasks past their scheduled_time."""
     result = await session.exec(
         select(Task.id, Task.user_id).where(
             Task.status == TaskStatus.SCHEDULED,
-            Task.scheduled_time <= now,
+            Task.scheduled_time <= datetime.now(),
         )
     )
     return list(result.all())
 
 
 async def get_retryable_failed_tasks(session: AsyncSession) -> list[tuple[int, int]]:
-    """Find failed tasks with network-related errors that should be auto-retried.
+    """Find failed tasks with network-related errors eligible for auto-retry.
 
-    Only retries tasks that failed due to transient network issues (connection,
-    timeout, etc.), not business logic failures (rejection, cancelled by user).
-    Tasks are retried once — if error_reason starts with '[RETRIED]', skip it.
+    Tasks already retried (error_reason starts with '[RETRIED]') are skipped.
     """
     result = await session.exec(
         select(Task.id, Task.user_id, Task.error_reason).where(
@@ -42,14 +37,14 @@ async def get_retryable_failed_tasks(session: AsyncSession) -> list[tuple[int, i
             Task.error_reason.isnot(None),
         )
     )
-    retryable = []
+    retryable_tasks = []
     for task_id, user_id, error_reason in result.all():
         if not error_reason or error_reason.startswith("[RETRIED]"):
             continue
         error_lower = error_reason.lower()
-        if any(kw in error_lower for kw in RETRYABLE_ERROR_KEYWORDS):
-            retryable.append((task_id, user_id))
-    return retryable
+        if any(keyword in error_lower for keyword in RETRYABLE_ERROR_KEYWORDS):
+            retryable_tasks.append((task_id, user_id))
+    return retryable_tasks
 
 
 async def mark_task_for_retry(session: AsyncSession, task_id: int) -> None:
@@ -77,84 +72,56 @@ async def transition_task(session: AsyncSession, task_id: int) -> None:
         logger.info("Task %d transitioned SCHEDULED → PENDING", task_id)
 
 
+async def _process_due_tasks() -> None:
+    """Find and execute all due scheduled tasks."""
+    from app.modules.scheduler.task_executor import execute_due_task
+
+    async with AsyncSession(engine) as session:
+        due_tasks = await get_due_tasks(session)
+
+    for task_id, user_id in due_tasks:
+        try:
+            async with AsyncSession(engine) as session:
+                await transition_task(session, task_id)
+            await execute_due_task(task_id, user_id)
+        except Exception as process_error:
+            logger.error("Failed to process task %d: %s", task_id, str(process_error))
+
+    if due_tasks:
+        logger.info("Processed %d due tasks", len(due_tasks))
+
+
+async def _process_retryable_tasks() -> None:
+    """Find and retry all failed tasks with network errors."""
+    from app.modules.scheduler.task_executor import execute_due_task
+
+    async with AsyncSession(engine) as session:
+        retryable_tasks = await get_retryable_failed_tasks(session)
+
+    for task_id, user_id in retryable_tasks:
+        try:
+            async with AsyncSession(engine) as session:
+                await mark_task_for_retry(session, task_id)
+            await execute_due_task(task_id, user_id)
+        except Exception as retry_error:
+            logger.error("Retry of task %d failed: %s", task_id, str(retry_error))
+
+    if retryable_tasks:
+        logger.info("Retried %d failed tasks", len(retryable_tasks))
+
+
 async def run_scheduler() -> None:
-    """Background loop that polls for due scheduled tasks.
+    """Background polling loop for the worker process.
 
-    For each due task:
-    1. Transitions SCHEDULED → PENDING
-    2. Attempts auto-execution via CallManager
-
-    This runs as a standalone process (app/worker.py), separate from the API.
-    No Redis or Celery needed — simple asyncio polling.
+    Runs as a standalone process (app/worker.py), separate from the API.
     """
     logger.info("Task scheduler started (polling every %ds)", POLL_INTERVAL_SECONDS)
 
     while True:
         try:
-            async with AsyncSession(engine) as session:
-                due_tasks = await get_due_tasks(session)
-
-            for task_id, user_id in due_tasks:
-                try:
-                    async with AsyncSession(engine) as session:
-                        await transition_task(session, task_id)
-                    await execute_due_task(task_id, user_id)
-
-                except Exception as e:
-                    logger.error("Failed to process task %d: %s", task_id, str(e))
-
-            if due_tasks:
-                logger.info("Processed %d due tasks", len(due_tasks))
-
-            async with AsyncSession(engine) as session:
-                retryable = await get_retryable_failed_tasks(session)
-
-            for task_id, user_id in retryable:
-                try:
-                    async with AsyncSession(engine) as session:
-                        await mark_task_for_retry(session, task_id)
-                    await execute_due_task(task_id, user_id)
-                except Exception as e:
-                    logger.error("Retry of task %d failed: %s", task_id, str(e))
-
-            if retryable:
-                logger.info("Retried %d failed tasks", len(retryable))
-
-        except Exception as e:
-            logger.error("Scheduler error: %s", str(e))
+            await _process_due_tasks()
+            await _process_retryable_tasks()
+        except Exception as scheduler_error:
+            logger.error("Scheduler error: %s", str(scheduler_error))
 
         await asyncio.sleep(POLL_INTERVAL_SECONDS)
-
-
-async def execute_due_task(task_id: int, user_id: int) -> None:
-    """Execute a due task using the CallManager.
-
-    Creates its own DB session and dependencies to avoid
-    sharing state with the scheduler session.
-    """
-    from app.integrations.call_manager import CallManager
-    from app.modules.calls.repository import CallSessionRepository, LogLineRepository
-    from app.modules.tasks.repository import TaskRepository
-    from app.modules.templates.repository import TemplateRepository
-    from app.modules.users.repository import UserRepository
-
-    async with AsyncSession(engine) as session:
-        task_repo = TaskRepository(session=session)
-        template_repo = TemplateRepository(session=session)
-        call_session_repo = CallSessionRepository(session=session)
-        log_line_repo = LogLineRepository(session=session)
-        user_repo = UserRepository(session=session)
-
-        manager = CallManager(
-            task_repository=task_repo,
-            template_repository=template_repo,
-            call_session_repository=call_session_repo,
-            log_line_repository=log_line_repo,
-            user_repository=user_repo,
-        )
-
-        try:
-            result = await manager.execute_task(task_id, user_id)
-            logger.info("Task %d auto-executed with status: %s", task_id, result.status)
-        except Exception as e:
-            logger.error("Task %d auto-execution failed: %s", task_id, str(e))
