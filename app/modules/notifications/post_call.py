@@ -1,8 +1,10 @@
 import asyncio
 from typing import Annotated
 
+import aiofiles
 from fastapi import Depends
 
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.modules.calls.repository import CallSessionRepository, LogLineRepository
 from app.modules.notifications.email_service import EmailService
@@ -13,6 +15,8 @@ from app.modules.templates.repository import TemplateRepository
 from app.modules.users.repository import UserRepository
 
 logger = get_logger(__name__)
+
+RECORDINGS_DIR = settings.STORAGE_DIR / "recordings"
 
 
 class PostCallProcessor:
@@ -39,10 +43,16 @@ class PostCallProcessor:
             logger.warning("No user/email found for task %d, skipping notification", task.id)
             return
 
-        await asyncio.gather(
+        coroutines = [
             self._archive_logs(task),
-            self._send_notification(task, user.email),
-        )
+            self._save_recording_locally(task),
+        ]
+        if user.email_notifications:
+            coroutines.append(self._send_notification(task, user.email))
+        else:
+            logger.info("Email notifications disabled for user %d, skipping for task %d", user.id, task.id)
+
+        await asyncio.gather(*coroutines)
 
         logger.info("Post-call processing completed for task %d", task.id)
 
@@ -81,3 +91,33 @@ class PostCallProcessor:
             call_session.id,
             call_session.duration or "N/A",
         )
+
+    async def _save_recording_locally(self, task: Task) -> None:
+        call_session = await self.call_session_repository.get_by_task_id(task.id)
+        if not call_session or not call_session.recording_uri:
+            return
+
+        if call_session.local_recording_path:
+            logger.debug("Recording already saved locally for task %d", task.id)
+            return
+
+        try:
+            from app.integrations.twilio_adapter import TwilioAdapter
+
+            adapter = TwilioAdapter()
+            recording_url = call_session.recording_uri.replace(".wav", ".mp3")
+            audio_bytes = await adapter.get_recording_audio(recording_url)
+
+            RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
+            filename = f"task_{task.id}.mp3"
+            file_path = RECORDINGS_DIR / filename
+
+            async with aiofiles.open(file_path, "wb") as f:
+                await f.write(audio_bytes)
+
+            call_session.local_recording_path = str(file_path)
+            await self.call_session_repository.update(call_session)
+
+            logger.info("Saved recording locally for task %d (%d bytes)", task.id, len(audio_bytes))
+        except Exception:
+            logger.warning("Failed to save recording locally for task %d", task.id, exc_info=True)

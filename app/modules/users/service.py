@@ -32,6 +32,7 @@ class UserService:
             email=user.email,
             role=user.role,
             phone_number=user.phone_number,
+            email_notifications=user.email_notifications,
             created_at=user.created_at.isoformat(),
             updated_at=user.updated_at.isoformat(),
         )
@@ -104,6 +105,9 @@ class UserService:
 
         if data.phone_number is not None:
             user.phone_number = data.phone_number
+
+        if data.email_notifications is not None:
+            user.email_notifications = data.email_notifications
 
         updated_user = await self.user_repository.update(user)
         return self._to_response(updated_user)

@@ -60,6 +60,7 @@ class UserResponse(BaseModel):
     email: str | None
     role: UserRole
     phone_number: str | None = None
+    email_notifications: bool = True
     created_at: str
     updated_at: str
 
@@ -74,6 +75,7 @@ class UserListResponse(BaseModel):
 class ProfileUpdate(BaseModel):
     phone_number: str | None = None
     email: EmailStr | None = None
+    email_notifications: bool | None = None
 
 
 class ChangePassword(BaseModel):

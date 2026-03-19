@@ -13,6 +13,7 @@ class CallSession(BaseModel, table=True):
     start_time: datetime = Field(default_factory=datetime.now, nullable=False)
     duration: int | None = Field(default=None, nullable=True)
     recording_uri: str | None = Field(default=None, nullable=True)
+    local_recording_path: str | None = Field(default=None, nullable=True)
 
 
 class LogLine(BaseModel, table=True):
