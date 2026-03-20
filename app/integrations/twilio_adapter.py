@@ -19,7 +19,7 @@ RETRY_DELAY_SECONDS = 5
 LANGUAGE_CONFIG = {
     "en": {"gather_lang": "en-US", "voice": "Polly.Joanna", "say_lang": "en-US"},
     "ru": {"gather_lang": "ru-RU", "voice": "Google.ru-RU-Wavenet-A", "say_lang": "ru-RU"},
-    "ro": {"gather_lang": "ro-RO", "voice": "Google.ro-RO-Wavenet-A", "say_lang": "ro-RO"},
+    "ro": {"gather_lang": "ro-RO", "voice": "Google.ro-RO-Wavenet-B", "say_lang": "ro-RO"},
 }
 
 # TODO: production — replace with Redis pub/sub or a shared message broker. Module-level

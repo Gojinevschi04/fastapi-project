@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import Depends
-from sqlmodel import select
+from sqlmodel import func, select
 
 from app.core.logging import get_logger
 from app.modules.calls.models import CallSession, LogLine
@@ -10,6 +10,7 @@ from app.modules.calls.repository import CallSessionRepository
 from app.modules.tasks.models import Task
 from app.modules.tasks.repository import TaskRepository
 from app.modules.tasks.schema import AdminStatsResponse, TaskStatsResponse, TaskStatus
+from app.modules.templates.models import DialogTemplate
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schema import UserRole
@@ -49,6 +50,54 @@ class AdminService:
             tasks_by_status=tasks_by_status,
             total_calls=total_calls,
         )
+
+    async def get_extended_stats(self) -> dict:
+        session = self.user_repository._session
+
+        # Tasks per template
+        result = await session.exec(
+            select(DialogTemplate.name, func.count(Task.id))
+            .join(Task, Task.template_id == DialogTemplate.id)
+            .group_by(DialogTemplate.name)
+            .order_by(func.count(Task.id).desc())
+        )
+        tasks_per_template = [{"name": name, "count": count} for name, count in result.all()]
+
+        # Average call duration
+        result = await session.exec(
+            select(func.avg(CallSession.duration)).where(CallSession.duration.is_not(None))
+        )
+        average_duration = round(result.one() or 0)
+
+        # Tasks per day (last 30 days)
+        result = await session.exec(
+            select(
+                func.date_trunc("day", Task.created_at).label("day"),
+                func.count(Task.id),
+            )
+            .group_by("day")
+            .order_by("day")
+            .limit(30)
+        )
+        tasks_per_day = [{"date": str(day.date()), "count": count} for day, count in result.all()]
+
+        # Users per month
+        result = await session.exec(
+            select(
+                func.date_trunc("month", User.created_at).label("month"),
+                func.count(User.id),
+            )
+            .group_by("month")
+            .order_by("month")
+        )
+        users_per_month = [{"date": str(month.date()), "count": count} for month, count in result.all()]
+
+        return {
+            "tasks_per_template": tasks_per_template,
+            "average_call_duration": average_duration,
+            "tasks_per_day": tasks_per_day,
+            "users_per_month": users_per_month,
+        }
 
     async def get_all_users(self, limit: int = 50, offset: int = 0) -> tuple[Sequence[User], int]:
         return await self.user_repository.get_all_paginated(offset, limit)
