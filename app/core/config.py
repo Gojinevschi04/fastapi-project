@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     EMAIL_FROM_NAME: str = "Quiet Call AI"
     EMAIL_ENABLED: bool = False
     FEEDBACK_EMAILS: str = ""  # Comma-separated list of emails to receive feedback
+    TEST_PHONE_OVERRIDE: str = ""  # When set, all calls go to this number instead of task's target_phone
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).parent.parent.parent / ".env",

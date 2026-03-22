@@ -83,10 +83,11 @@ class CallManager:
             lang = template.language or "en"
             system_prompt = self._build_system_prompt(template.base_script, task.slot_data, lang)
 
-            await self._emit(task_id, "dialing", {"phone": task.target_phone})
+            dial_phone = self._resolve_phone(task.target_phone)
+            await self._emit(task_id, "dialing", {"phone": dial_phone})
 
             call_sid = await self._voice.initiate_call(
-                to_phone=task.target_phone,
+                to_phone=dial_phone,
                 callback_url=callback_url,
             )
             logger.info("Call SID: %s for task %d (language: %s)", call_sid, task.id, lang)
@@ -212,6 +213,15 @@ class CallManager:
             [{"role": "user", "content": f"Conversation:\n{conv.format_history()}"}],
             PromptBuilder.build_summary_prompt(language),
         )
+
+    def _resolve_phone(self, target_phone: str) -> str:
+        from app.core.config import settings
+
+        if settings.TEST_PHONE_OVERRIDE:
+            logger.info("TEST_PHONE_OVERRIDE active: routing call to %s instead of %s",
+                        settings.TEST_PHONE_OVERRIDE, target_phone)
+            return settings.TEST_PHONE_OVERRIDE
+        return target_phone
 
     def _get_callback_base(self) -> str:
         from app.core.config import settings
