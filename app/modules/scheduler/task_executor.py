@@ -13,7 +13,12 @@ logger = get_logger(__name__)
 
 
 async def execute_due_task(task_id: int, user_id: int) -> None:
-    """Execute a single task using the configured call manager with a fresh DB session."""
+    """Execute a single task using the configured call manager with a fresh DB session.
+
+    Gated by the process-local call semaphore so worker-triggered calls
+    respect the same MAX_CONCURRENT_CALLS cap as API-triggered ones.
+    """
+    from app.core.concurrency import get_call_semaphore
     from app.core.config import settings
     from app.integrations.call_manager import CallManager
     from app.integrations.realtime_call_manager import RealtimeCallManager
@@ -22,7 +27,8 @@ async def execute_due_task(task_id: int, user_id: int) -> None:
     from app.modules.templates.repository import TemplateRepository
     from app.modules.users.repository import UserRepository
 
-    async with AsyncSession(engine) as session:
+    semaphore = get_call_semaphore()
+    async with semaphore, AsyncSession(engine) as session:
         repos = {
             "task_repository": TaskRepository(session=session),
             "template_repository": TemplateRepository(session=session),

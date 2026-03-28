@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     REALTIME_VAD_MODE: str = "semantic_vad"
     REALTIME_VAD_EAGERNESS: str = "medium"
 
+    MAX_CONCURRENT_CALLS: int = 10
+
     model_config = SettingsConfigDict(
         env_file=Path(__file__).parent.parent.parent / ".env",
         extra="ignore",

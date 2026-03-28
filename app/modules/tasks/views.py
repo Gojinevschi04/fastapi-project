@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
+from app.core.concurrency import get_call_semaphore
 from app.core.config import settings
 from app.core.database import async_session
 from app.core.logging import get_logger
@@ -218,25 +219,30 @@ async def retry_task_view(
 
 
 async def _run_call_in_background(task_id: int, user_id: int, is_admin: bool) -> None:
-    """Run call execution with its own DB session (not tied to the HTTP request)."""
+    """Run call execution with its own DB session (not tied to the HTTP request).
+
+    Gated by a process-local semaphore so we don't exceed MAX_CONCURRENT_CALLS.
+    """
     from app.modules.calls.repository import CallSessionRepository, LogLineRepository
     from app.modules.tasks.repository import TaskRepository as TaskRepo
     from app.modules.templates.repository import TemplateRepository as TemplateRepo
     from app.modules.users.repository import UserRepository
 
-    try:
-        async with async_session() as session:
-            repos = {
-                "task_repository": TaskRepo(session=session),
-                "template_repository": TemplateRepo(session=session),
-                "call_session_repository": CallSessionRepository(session=session),
-                "log_line_repository": LogLineRepository(session=session),
-                "user_repository": UserRepository(session=session),
-            }
-            manager = RealtimeCallManager(**repos) if settings.USE_REALTIME_API else CallManager(**repos)
-            await manager.execute_task(task_id, user_id, is_admin=is_admin)
-    except Exception:
-        logger.exception("Background call execution failed for task %d", task_id)
+    semaphore = get_call_semaphore()
+    async with semaphore:
+        try:
+            async with async_session() as session:
+                repos = {
+                    "task_repository": TaskRepo(session=session),
+                    "template_repository": TemplateRepo(session=session),
+                    "call_session_repository": CallSessionRepository(session=session),
+                    "log_line_repository": LogLineRepository(session=session),
+                    "user_repository": UserRepository(session=session),
+                }
+                manager = RealtimeCallManager(**repos) if settings.USE_REALTIME_API else CallManager(**repos)
+                await manager.execute_task(task_id, user_id, is_admin=is_admin)
+        except Exception:
+            logger.exception("Background call execution failed for task %d", task_id)
 
 
 @router.post("/{task_id}/execute")
