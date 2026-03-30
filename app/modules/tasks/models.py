@@ -16,3 +16,5 @@ class Task(BaseModel, table=True):
     scheduled_time: datetime | None = Field(default=None, nullable=True, index=True)
     summary: str | None = Field(default=None, nullable=True)
     error_reason: str | None = Field(default=None, nullable=True)
+    retry_count: int = Field(default=0, nullable=False)
+    next_retry_at: datetime | None = Field(default=None, nullable=True, index=True)
