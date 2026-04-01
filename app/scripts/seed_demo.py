@@ -9,7 +9,7 @@ Creates:
 import asyncio
 from datetime import datetime, timedelta
 
-from sqlmodel import func, select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import engine
@@ -29,7 +29,6 @@ from app.scripts.constants import (
     CALL_DURATION_VARIATION_FACTOR,
     DEMO_RECORDING_URL_TEMPLATE,
     MAX_CALL_DURATION_VARIATION,
-    MIN_TASK_COUNT_TO_SKIP,
     SECONDS_BETWEEN_TRANSCRIPT_LINES,
     USER_PASSWORD,
 )
@@ -129,17 +128,14 @@ def _get_template_id(
 
 
 async def seed_tasks(session: AsyncSession, users: dict[str, int]) -> list[Task]:
-    result = await session.exec(select(func.count()).select_from(Task))
-    count = result.one()
-    if count >= MIN_TASK_COUNT_TO_SKIP:
-        print(f"  SKIP tasks: {count} tasks already exist")
-        return []
-
     result = await session.exec(select(DialogTemplate))
     templates = list(result.all())
     if not templates:
         print("  SKIP tasks: no templates — run 'make db.seed' first")
         return []
+
+    existing_phones_result = await session.exec(select(Task.target_phone))
+    existing_phones = set(existing_phones_result.all())
 
     template_name_to_id: dict[str, int] = {t.name: t.id for t in templates}
     fallback_template_id = templates[0].id
@@ -543,10 +539,647 @@ async def seed_tasks(session: AsyncSession, users: dict[str, int]) -> list[Task]
             "summary": "Demo meeting scheduled with client at HQ, March 14 at 10 AM.",
             "ago_days": 6,
         },
+        # --- Days 25-29 ago (light activity, mostly completed) ---
+        {
+            "phone": "+37322400100",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Make appointment",
+            "user": "maria@example.com",
+            "slots": {
+                "preferred_date": "2026-03-28",
+                "preferred_time": "16:00",
+                "service_type": "haircut",
+                "patient_name": "Maria P.",
+            },
+            "summary": "Haircut booked at Salon Elite, March 28 at 4 PM.",
+            "ago_days": 28,
+        },
+        {
+            "phone": "+37322400200",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Payment reminder",
+            "user": "victor@example.com",
+            "slots": {
+                "invoice_number": "INV-2026-0011",
+                "amount_due": "950 MDL",
+                "due_date": "2026-03-25",
+                "company_name": "Victor's Consulting",
+            },
+            "summary": "Invoice paid. Transaction ID TRX-55021.",
+            "ago_days": 27,
+        },
+        {
+            "phone": "+37322400300",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Confirm reservation",
+            "user": "john@example.com",
+            "slots": {
+                "reservation_id": "RST-9988",
+                "reservation_date": "2026-03-26",
+                "guest_name": "John Smith",
+            },
+            "summary": "Table for 4 confirmed at La Taifas for 7 PM.",
+            "ago_days": 26,
+        },
+        {
+            "phone": "+37322400400",
+            "status": TaskStatus.FAILED,
+            "tpl": "Request information",
+            "user": "dmitri@example.com",
+            "slots": {
+                "question_topic": "international shipping fees",
+                "business_name": "Moldova Post",
+            },
+            "error": "No answer after 3 attempts.",
+            "ago_days": 25,
+        },
+        # --- Days 15-24 ago (mid activity, broad mix) ---
+        {
+            "phone": "+37322500100",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Insurance claim inquiry",
+            "user": "elena@example.com",
+            "slots": {
+                "claim_number": "CLM-3311",
+                "policyholder_name": "Elena V.",
+                "claim_type": "home",
+            },
+            "summary": "Claim under review. Decision expected within 10 business days.",
+            "ago_days": 23,
+        },
+        {
+            "phone": "+37322500200",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Order status check",
+            "user": "ana@example.com",
+            "slots": {"order_number": "ORD-22114", "customer_name": "Ana G."},
+            "summary": "Order delivered March 27. Signed by recipient.",
+            "ago_days": 22,
+        },
+        {
+            "phone": "+37322500300",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Make appointment",
+            "user": "natalia@example.com",
+            "slots": {
+                "preferred_date": "2026-04-02",
+                "preferred_time": "11:00",
+                "service_type": "dental cleaning",
+                "patient_name": "Natalia R.",
+            },
+            "summary": "Cleaning booked April 2 at 11 AM with Dr. Rusu.",
+            "ago_days": 21,
+        },
+        {
+            "phone": "+37322500400",
+            "status": TaskStatus.FAILED,
+            "tpl": "Cancel appointment",
+            "user": "alex@example.com",
+            "slots": {
+                "appointment_date": "2026-04-01",
+                "appointment_time": "10:00",
+                "booked_name": "Alex T.",
+                "reason": "personal",
+            },
+            "error": "Interlocutor hung up before confirming.",
+            "ago_days": 20,
+        },
+        {
+            "phone": "+37322500500",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Follow-up call",
+            "user": "john@example.com",
+            "slots": {
+                "reference_number": "CASE-9011",
+                "contact_name": "Legal Team",
+                "follow_up_topic": "contract review status",
+            },
+            "summary": "Contract approved with minor amendments. Document sent via email.",
+            "ago_days": 19,
+        },
+        {
+            "phone": "+37322500800",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Prescription refill request",
+            "user": "ana@example.com",
+            "slots": {
+                "patient_name": "Ana Gojinevschi",
+                "prescription_number": "RX-115902",
+                "pharmacy_name": "Farmacia Centrală",
+            },
+            "summary": "Refill approved. Ready for pickup next business day.",
+            "ago_days": 18,
+        },
+        {
+            "phone": "+37322500900",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Service outage report",
+            "user": "victor@example.com",
+            "slots": {
+                "account_number": "ACC-556644",
+                "service_type": "cable TV",
+                "issue_description": "Signal lost since morning",
+                "customer_name": "Victor M.",
+            },
+            "summary": "Regional outage reported. Technicians dispatched, ETA 4 hours.",
+            "ago_days": 17,
+        },
+        {
+            "phone": "+37322501000",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Make appointment",
+            "user": "elena@example.com",
+            "slots": {
+                "preferred_date": "2026-04-06",
+                "preferred_time": "09:00",
+                "service_type": "check-up",
+                "patient_name": "Elena V.",
+            },
+            "summary": "Check-up booked with Dr. Munteanu, April 6 at 9 AM.",
+            "ago_days": 16,
+        },
+        {
+            "phone": "+37322501100",
+            "status": TaskStatus.FAILED,
+            "tpl": "File a complaint",
+            "user": "dmitri@example.com",
+            "slots": {
+                "complaint_subject": "Wrong item delivered",
+                "complaint_details": "Received blue shirt instead of red, order #DM-4412",
+                "customer_name": "Dmitri K.",
+            },
+            "error": "Call ended without resolution. Asked to resubmit in writing.",
+            "ago_days": 15,
+        },
+        # --- Days 7-14 ago (growing volume, mix of outcomes) ---
+        {
+            "phone": "+37322600100",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Confirm reservation",
+            "user": "ana@example.com",
+            "slots": {
+                "reservation_id": "HTL-7712",
+                "reservation_date": "2026-04-15",
+                "guest_name": "Ana G.",
+            },
+            "summary": "Hotel reservation confirmed for April 15, 2 nights.",
+            "ago_days": 14,
+        },
+        {
+            "phone": "+37322600200",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Reschedule appointment",
+            "user": "john@example.com",
+            "slots": {
+                "original_date": "2026-04-10",
+                "original_time": "14:00",
+                "new_preferred_date": "2026-04-17",
+                "new_preferred_time": "14:00",
+                "booked_name": "John Smith",
+                "service_type": "haircut",
+            },
+            "summary": "Rescheduled to April 17 at 2 PM. Same stylist.",
+            "ago_days": 13,
+        },
+        {
+            "phone": "+37322600300",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Order status check",
+            "user": "maria@example.com",
+            "slots": {"order_number": "PKG-22180", "customer_name": "Maria P."},
+            "summary": "Package in transit. Expected delivery in 2 business days.",
+            "ago_days": 12,
+        },
+        {
+            "phone": "+37322600400",
+            "status": TaskStatus.FAILED,
+            "tpl": "Payment reminder",
+            "user": "victor@example.com",
+            "slots": {
+                "invoice_number": "INV-2026-0077",
+                "amount_due": "3,100 MDL",
+                "due_date": "2026-04-15",
+                "company_name": "Victor's Consulting",
+            },
+            "error": "Client disputed the invoice. Escalated to accounting.",
+            "ago_days": 11,
+        },
+        {
+            "phone": "+37322600500",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Make appointment",
+            "user": "alex@example.com",
+            "slots": {
+                "preferred_date": "2026-04-20",
+                "preferred_time": "15:00",
+                "service_type": "eye exam",
+                "patient_name": "Alex T.",
+            },
+            "summary": "Eye exam booked April 20 at 3 PM. Bring current glasses.",
+            "ago_days": 11,
+        },
+        {
+            "phone": "+37322600600",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Insurance claim inquiry",
+            "user": "natalia@example.com",
+            "slots": {
+                "claim_number": "CLM-7890",
+                "policyholder_name": "Natalia R.",
+                "claim_type": "travel",
+            },
+            "summary": "Claim approved. Reimbursement of 450 EUR within 7 days.",
+            "ago_days": 10,
+        },
+        {
+            "phone": "+37322600710",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Request information",
+            "user": "dmitri@example.com",
+            "slots": {
+                "question_topic": "apartment availability in May",
+                "business_name": "Chisinau Rentals",
+            },
+            "summary": "Three 2-bedroom apartments available. Viewings can be scheduled Mon-Fri.",
+            "ago_days": 9,
+        },
+        {
+            "phone": "+37322600820",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Follow-up call",
+            "user": "elena@example.com",
+            "slots": {
+                "reference_number": "TKT-41002",
+                "contact_name": "IT Helpdesk",
+                "follow_up_topic": "laptop setup",
+            },
+            "summary": "Laptop configured and delivered to the office.",
+            "ago_days": 8,
+        },
+        {
+            "phone": "+37322600930",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Service outage report",
+            "user": "ana@example.com",
+            "slots": {
+                "account_number": "ACC-102938",
+                "service_type": "mobile data",
+                "issue_description": "No 4G signal in Ciocana district",
+                "customer_name": "Ana G.",
+            },
+            "summary": "Known tower maintenance. Service to resume by evening. Ticket #OUT-2240.",
+            "ago_days": 7,
+        },
+        # --- Future scheduled (days 1-7 ahead) ---
+        {
+            "phone": "+37322700110",
+            "status": TaskStatus.SCHEDULED,
+            "tpl": "Confirm reservation",
+            "user": "ana@example.com",
+            "slots": {
+                "reservation_id": "HTL-9921",
+                "reservation_date": "2026-04-30",
+                "guest_name": "Ana G.",
+            },
+            "scheduled_future_days": 3,
+            "ago_hours": 8,
+        },
+        {
+            "phone": "+37322700220",
+            "status": TaskStatus.SCHEDULED,
+            "tpl": "Make appointment",
+            "user": "maria@example.com",
+            "slots": {
+                "preferred_date": "2026-05-02",
+                "preferred_time": "11:00",
+                "service_type": "notary",
+                "patient_name": "Maria P.",
+            },
+            "scheduled_future_days": 5,
+            "ago_hours": 10,
+        },
+        {
+            "phone": "+37322700330",
+            "status": TaskStatus.SCHEDULED,
+            "tpl": "Payment reminder",
+            "user": "victor@example.com",
+            "slots": {
+                "invoice_number": "INV-2026-0102",
+                "amount_due": "2,400 MDL",
+                "due_date": "2026-05-10",
+                "company_name": "Victor's Consulting",
+            },
+            "scheduled_future_days": 6,
+            "ago_hours": 12,
+        },
+        # --- Recent today (<24h, pending/in-progress) ---
+        {
+            "phone": "+37322800110",
+            "status": TaskStatus.PENDING,
+            "tpl": "Request information",
+            "user": "john@example.com",
+            "slots": {
+                "question_topic": "weekend delivery options",
+                "business_name": "DHL Moldova",
+            },
+            "ago_hours": 2,
+        },
+        {
+            "phone": "+37322800220",
+            "status": TaskStatus.IN_PROGRESS,
+            "tpl": "Make appointment",
+            "user": "natalia@example.com",
+            "slots": {
+                "preferred_date": "2026-04-25",
+                "preferred_time": "13:00",
+                "service_type": "consultation",
+                "patient_name": "Natalia R.",
+            },
+            "ago_hours": 0,
+        },
+        # ===== Romanian-heavy demo data (for RO demo) =====
+        {
+            "phone": "+37322030101",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Programare la medic",
+            "user": "ana@example.com",
+            "slots": {
+                "preferred_date": "2026-04-02",
+                "preferred_time": "09:30",
+                "service_type": "stomatolog",
+                "patient_name": "Ana G.",
+            },
+            "summary": "Programare confirmată la Clinica Dentaria, 2 aprilie, ora 9:30.",
+            "ago_days": 26,
+        },
+        {
+            "phone": "+37322030102",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Confirmare rezervare",
+            "user": "maria@example.com",
+            "slots": {
+                "reservation_id": "REZ-2026-0110",
+                "reservation_date": "2026-04-05",
+                "guest_name": "Maria P.",
+            },
+            "summary": "Rezervare confirmată la restaurant Andy's, masa pentru 4 persoane.",
+            "ago_days": 24,
+        },
+        {
+            "phone": "+37322030103",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Solicitare informații",
+            "user": "john@example.com",
+            "slots": {
+                "question_topic": "program de lucru",
+                "business_name": "Poșta Moldovei",
+            },
+            "summary": "Program: luni-vineri 08:00-17:00, sâmbătă 09:00-13:00.",
+            "ago_days": 22,
+        },
+        {
+            "phone": "+37322030104",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Programare la medic",
+            "user": "elena@example.com",
+            "slots": {
+                "preferred_date": "2026-04-10",
+                "preferred_time": "14:00",
+                "service_type": "consultație cardiologie",
+                "patient_name": "Elena V.",
+            },
+            "summary": "Programare confirmată cu Dr. Munteanu, 10 aprilie ora 14:00.",
+            "ago_days": 20,
+        },
+        {
+            "phone": "+37322030105",
+            "status": TaskStatus.FAILED,
+            "tpl": "Anulare programare",
+            "user": "dmitri@example.com",
+            "slots": {
+                "appointment_date": "2026-04-12",
+                "appointment_time": "10:00",
+                "booked_name": "Dmitri K.",
+                "reason": "urgență de serviciu",
+            },
+            "error": "Linia ocupată după 3 încercări.",
+            "ago_days": 18,
+        },
+        {
+            "phone": "+37322030106",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Reprogramare programare",
+            "user": "natalia@example.com",
+            "slots": {
+                "original_date": "2026-04-15",
+                "original_time": "11:00",
+                "new_preferred_date": "2026-04-22",
+                "new_preferred_time": "11:00",
+                "booked_name": "Natalia R.",
+                "service_type": "masaj terapeutic",
+            },
+            "summary": "Reprogramare confirmată pentru 22 aprilie, ora 11:00.",
+            "ago_days": 16,
+        },
+        {
+            "phone": "+37322030107",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Solicitare informații",
+            "user": "alex@example.com",
+            "slots": {
+                "question_topic": "preț abonament anual",
+                "business_name": "FitLife Chișinău",
+            },
+            "summary": "Abonament anual: 3.200 MDL, include sală și bazin.",
+            "ago_days": 14,
+        },
+        {
+            "phone": "+37322030108",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Programare la medic",
+            "user": "victor@example.com",
+            "slots": {
+                "preferred_date": "2026-04-18",
+                "preferred_time": "16:00",
+                "service_type": "analize sânge",
+                "patient_name": "Victor M.",
+            },
+            "summary": "Programare confirmată la laborator Synevo, 18 aprilie ora 16:00. Vine nemâncat.",
+            "ago_days": 13,
+        },
+        {
+            "phone": "+37322030109",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Confirmare rezervare",
+            "user": "ana@example.com",
+            "slots": {
+                "reservation_id": "HTL-CHI-4412",
+                "reservation_date": "2026-04-28",
+                "guest_name": "Ana Gojinevschi",
+            },
+            "summary": "Rezervare hotel confirmată: Berd's Design Hotel, 28-30 aprilie, cameră dublă.",
+            "ago_days": 12,
+        },
+        {
+            "phone": "+37322030110",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Anulare programare",
+            "user": "john@example.com",
+            "slots": {
+                "appointment_date": "2026-04-20",
+                "appointment_time": "09:00",
+                "booked_name": "John Smith",
+                "reason": "conflict de călătorie",
+            },
+            "summary": "Programare anulată. Fără taxă de anulare.",
+            "ago_days": 11,
+        },
+        {
+            "phone": "+37322030111",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Solicitare informații",
+            "user": "maria@example.com",
+            "slots": {
+                "question_topic": "disponibilitate apartament 2 camere",
+                "business_name": "Chișinău Imobil",
+            },
+            "summary": "Trei apartamente disponibile, vizionări programate marți după-amiază.",
+            "ago_days": 10,
+        },
+        {
+            "phone": "+37322030112",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Programare la medic",
+            "user": "elena@example.com",
+            "slots": {
+                "preferred_date": "2026-04-24",
+                "preferred_time": "10:30",
+                "service_type": "control stomatologic",
+                "patient_name": "Elena V.",
+            },
+            "summary": "Programare confirmată la Dr. Rusu, 24 aprilie ora 10:30.",
+            "ago_days": 9,
+        },
+        {
+            "phone": "+37322030113",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Reprogramare programare",
+            "user": "dmitri@example.com",
+            "slots": {
+                "original_date": "2026-04-25",
+                "original_time": "15:00",
+                "new_preferred_date": "2026-05-02",
+                "new_preferred_time": "15:00",
+                "booked_name": "Dmitri K.",
+                "service_type": "tuns și barbă",
+            },
+            "summary": "Reprogramat pentru 2 mai ora 15:00, același maestru.",
+            "ago_days": 8,
+        },
+        {
+            "phone": "+37322030114",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Confirmare rezervare",
+            "user": "alex@example.com",
+            "slots": {
+                "reservation_id": "AVIA-MD-2040",
+                "reservation_date": "2026-05-05",
+                "guest_name": "Alex T.",
+            },
+            "summary": "Zbor confirmat: Chișinău-București, 5 mai 07:15, locul 14A.",
+            "ago_days": 7,
+        },
+        {
+            "phone": "+37322030115",
+            "status": TaskStatus.FAILED,
+            "tpl": "Programare la medic",
+            "user": "natalia@example.com",
+            "slots": {
+                "preferred_date": "2026-04-28",
+                "preferred_time": "11:00",
+                "service_type": "dermatolog",
+                "patient_name": "Natalia R.",
+            },
+            "error": "Nicio slot liber până pe 10 mai. A sugerat să sunăm ulterior.",
+            "ago_days": 6,
+        },
+        {
+            "phone": "+37322030116",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Solicitare informații",
+            "user": "victor@example.com",
+            "slots": {
+                "question_topic": "prețuri servicii contabilitate",
+                "business_name": "ContExpert SRL",
+            },
+            "summary": "Pachet lunar de la 1.800 MDL pentru SRL. Ofertă personalizată prin email.",
+            "ago_days": 5,
+        },
+        {
+            "phone": "+37322030117",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Programare la medic",
+            "user": "ana@example.com",
+            "slots": {
+                "preferred_date": "2026-05-03",
+                "preferred_time": "13:00",
+                "service_type": "oftalmolog",
+                "patient_name": "Ana G.",
+            },
+            "summary": "Programare confirmată la Optimed, 3 mai ora 13:00.",
+            "ago_days": 4,
+        },
+        {
+            "phone": "+37322030118",
+            "status": TaskStatus.COMPLETED,
+            "tpl": "Anulare programare",
+            "user": "maria@example.com",
+            "slots": {
+                "appointment_date": "2026-04-30",
+                "appointment_time": "16:00",
+                "booked_name": "Maria P.",
+                "reason": "motive personale",
+            },
+            "summary": "Programare anulată cu succes. Fără taxă.",
+            "ago_days": 3,
+        },
+        {
+            "phone": "+37322030119",
+            "status": TaskStatus.SCHEDULED,
+            "tpl": "Confirmare rezervare",
+            "user": "elena@example.com",
+            "slots": {
+                "reservation_id": "REZ-EV-2210",
+                "reservation_date": "2026-05-12",
+                "guest_name": "Elena V.",
+            },
+            "scheduled_future_days": 4,
+            "ago_hours": 6,
+        },
+        {
+            "phone": "+37322030120",
+            "status": TaskStatus.PENDING,
+            "tpl": "Solicitare informații",
+            "user": "dmitri@example.com",
+            "slots": {
+                "question_topic": "livrare internațională",
+                "business_name": "Moldova Post",
+            },
+            "ago_hours": 3,
+        },
     ]
 
     created_task_ids: list[tuple[int, str]] = []
+    skipped_count = 0
     for task_data in tasks_data:
+        if task_data["phone"] in existing_phones:
+            skipped_count += 1
+            continue
+
+        task_created_at = now - timedelta(
+            days=task_data.get("ago_days", 0),
+            hours=task_data.get("ago_hours", 0),
+        )
         task = Task(
             target_phone=task_data["phone"],
             status=task_data["status"],
@@ -560,13 +1193,15 @@ async def seed_tasks(session: AsyncSession, users: dict[str, int]) -> list[Task]
             ),
             summary=task_data.get("summary"),
             error_reason=task_data.get("error"),
+            created_at=task_created_at,
+            updated_at=task_created_at,
         )
         session.add(task)
         await session.commit()
         await session.refresh(task)
         created_task_ids.append((task.id, task_data["status"]))
 
-    print(f"  CREATED {len(created_task_ids)} demo tasks")
+    print(f"  CREATED {len(created_task_ids)} demo tasks (skipped {skipped_count} already existing by phone)")
     return created_task_ids
 
 
@@ -722,38 +1357,126 @@ DEMO_TRANSCRIPTS: dict[str, list[dict]] = {
             "intent": None,
         },
     ],
+    "ro_programare_success": [
+        {
+            "speaker": Speaker.AGENT,
+            "text": "Bună ziua, sunt Ana. Aș dori să fac o programare pentru un control stomatologic.",
+            "intent": None,
+        },
+        {
+            "speaker": Speaker.INTERLOCUTOR,
+            "text": "Desigur, pentru ce dată ați dori?",
+            "intent": "request_info",
+        },
+        {
+            "speaker": Speaker.AGENT,
+            "text": "Preferabil pe 2 aprilie, dimineața dacă se poate.",
+            "intent": None,
+        },
+        {
+            "speaker": Speaker.INTERLOCUTOR,
+            "text": "Verific... Da, avem liber la ora 9:30.",
+            "intent": "confirmation",
+        },
+        {
+            "speaker": Speaker.AGENT,
+            "text": "Perfect, confirm pentru 9:30. Mulțumesc frumos! [OBJECTIVE_ACHIEVED]",
+            "intent": None,
+        },
+        {
+            "speaker": Speaker.INTERLOCUTOR,
+            "text": "Cu plăcere. O zi bună!",
+            "intent": "farewell",
+        },
+    ],
+    "ro_rezervare_success": [
+        {
+            "speaker": Speaker.AGENT,
+            "text": "Bună ziua, sun pentru a confirma rezervarea REZ-2026-0110 pentru 5 aprilie.",
+            "intent": None,
+        },
+        {
+            "speaker": Speaker.INTERLOCUTOR,
+            "text": "Un moment, vă rog... Da, o văd. Masă pentru 4 persoane la ora 19:00.",
+            "intent": "confirmation",
+        },
+        {
+            "speaker": Speaker.AGENT,
+            "text": "Exact. Totul este în regulă?",
+            "intent": None,
+        },
+        {
+            "speaker": Speaker.INTERLOCUTOR,
+            "text": "Da, totul confirmat. Vă așteptăm!",
+            "intent": "confirmation",
+        },
+        {
+            "speaker": Speaker.AGENT,
+            "text": "Minunat, mulțumesc. La revedere! [OBJECTIVE_ACHIEVED]",
+            "intent": None,
+        },
+    ],
+    "ro_informatii_success": [
+        {
+            "speaker": Speaker.AGENT,
+            "text": "Bună ziua, mă numesc Alex. Aș dori să aflu prețul unui abonament anual.",
+            "intent": None,
+        },
+        {
+            "speaker": Speaker.INTERLOCUTOR,
+            "text": "Sigur, abonamentul anual costă 3.200 MDL și include sală și bazin.",
+            "intent": "provide_info",
+        },
+        {
+            "speaker": Speaker.AGENT,
+            "text": "Mulțumesc pentru informație. Există vreo ofertă în perioada aceasta?",
+            "intent": None,
+        },
+        {
+            "speaker": Speaker.INTERLOCUTOR,
+            "text": "Da, avem 10% reducere pentru studenți până la sfârșitul lunii.",
+            "intent": "provide_info",
+        },
+        {
+            "speaker": Speaker.AGENT,
+            "text": "Foarte bine, mulțumesc mult. O zi bună! [OBJECTIVE_ACHIEVED]",
+            "intent": None,
+        },
+    ],
 }
 
 
 async def seed_call_sessions(
     session: AsyncSession, tasks: list[tuple[int, str]]
 ) -> None:
-    result = await session.exec(select(func.count()).select_from(CallSession))
-    count = result.one()
-    if count > 0:
-        print(f"  SKIP call sessions: {count} already exist")
-        return
-
     transcript_keys = list(DEMO_TRANSCRIPTS.keys())
     total_sessions = 0
     total_log_lines = 0
 
+    existing_task_ids_result = await session.exec(select(CallSession.task_id))
+    existing_session_task_ids = set(existing_task_ids_result.all())
+
     result = await session.exec(
-        select(Task.id, Task.status).where(
+        select(Task.id, Task.status, Task.created_at).where(
             Task.status.in_([TaskStatus.COMPLETED, TaskStatus.FAILED])
         )
     )
-    eligible_tasks = result.all()
+    eligible_tasks = [
+        (task_id, status, created_at)
+        for (task_id, status, created_at) in result.all()
+        if task_id not in existing_session_task_ids
+    ]
 
-    for task_index, (task_id, _task_status) in enumerate(eligible_tasks):
-        now = datetime.now()
+    for task_index, (task_id, _task_status, task_created_at) in enumerate(eligible_tasks):
         duration = BASE_CALL_DURATION_SECONDS + (task_id * CALL_DURATION_VARIATION_FACTOR) % MAX_CALL_DURATION_VARIATION
 
         call_session = CallSession(
             task_id=task_id,
-            start_time=now - timedelta(days=task_id % 10, hours=task_id % 5),
+            start_time=task_created_at,
             duration=duration,
             recording_uri=DEMO_RECORDING_URL_TEMPLATE.format(task_id=task_id),
+            created_at=task_created_at,
+            updated_at=task_created_at,
         )
         session.add(call_session)
         await session.commit()

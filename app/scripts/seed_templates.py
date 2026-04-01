@@ -251,6 +251,36 @@ RO_TEMPLATES = [
         ),
         "required_slots": ["question_topic", "business_name"],
     },
+    {
+        "name": "Anulare programare",
+        "language": "ro",
+        "base_script": (
+            "Trebuie să anulezi o programare. "
+            "Salută, spune-ți numele, data și ora programării. "
+            "Dacă te întreabă motivul, explică pe scurt. "
+            "Întreabă dacă există taxă de anulare. Confirmă anularea și ia-ți la revedere."
+        ),
+        "required_slots": ["appointment_date", "appointment_time", "booked_name", "reason"],
+    },
+    {
+        "name": "Reprogramare programare",
+        "language": "ro",
+        "base_script": (
+            "Trebuie să reprogramezi o programare. "
+            "Salută, spune-ți numele, data și ora inițială. "
+            "Cere reprogramarea pentru noua dată și oră preferată. "
+            "Dacă nu e disponibil, întreabă cea mai apropiată alternativă. "
+            "Confirmă noile detalii și ia-ți la revedere."
+        ),
+        "required_slots": [
+            "original_date",
+            "original_time",
+            "new_preferred_date",
+            "new_preferred_time",
+            "booked_name",
+            "service_type",
+        ],
+    },
 ]
 
 TEMPLATES = EN_TEMPLATES + RU_TEMPLATES + RO_TEMPLATES
@@ -269,6 +299,7 @@ async def seed() -> None:
                 existing.base_script = template_data["base_script"]
                 existing.required_slots = template_data.get("required_slots", existing.required_slots)
                 await session.commit()
+                await session.refresh(existing)
                 print(f"  UPDATED: '{template_data['name']}' (id={existing.id})")
                 continue
 
