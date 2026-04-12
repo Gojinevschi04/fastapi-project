@@ -19,11 +19,14 @@ from app.modules.tasks.exceptions import (
     TaskNotCancellableError,
     TaskNotEditableError,
     TaskNotFoundError,
+    UserDailyQuotaExceededError,
 )
 from app.modules.tasks.schema import (
     TaskCreate,
+    TaskDuplicateRequest,
     TaskEditRequest,
     TaskListResponse,
+    TaskRatingRequest,
     TaskResponse,
     TaskStatsResponse,
     TaskStatus,
@@ -54,6 +57,8 @@ def _task_to_response(task: "Task", template_name: str | None = None) -> TaskRes
         error_reason=task.error_reason,
         retry_count=task.retry_count,
         next_retry_at=task.next_retry_at,
+        user_rating=task.user_rating,
+        user_rating_comment=task.user_rating_comment,
         created_at=task.created_at,
         updated_at=task.updated_at,
     )
@@ -67,12 +72,14 @@ async def create_task_view(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> TaskResponse:
     try:
-        task = await task_service.create_task(data, current_user.id)
+        task = await task_service.create_task(
+            data, current_user.id, is_admin=current_user.role == UserRole.ADMIN,
+        )
     except TemplateNotFoundError as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e)) from e
     except InvalidTaskDataError as e:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e)) from e
-    except PhoneRateLimitExceededError as e:
+    except (PhoneRateLimitExceededError, UserDailyQuotaExceededError) as e:
         raise HTTPException(status_code=HTTPStatus.TOO_MANY_REQUESTS, detail=str(e)) from e
 
     if task.scheduled_time:
@@ -202,6 +209,56 @@ async def cancel_task_view(
         raise HTTPException(status_code=HTTPStatus.CONFLICT, detail=str(e)) from e
 
     return MessageResponse(message="Task cancelled successfully")
+
+
+@router.post("/{task_id}/rate")
+async def rate_task_view(
+    task_id: int,
+    data: TaskRatingRequest,
+    task_service: Annotated[TaskService, Depends(TaskService)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> TaskResponse:
+    is_admin = current_user.role == UserRole.ADMIN
+    try:
+        task = await task_service.rate_task(
+            task_id, current_user.id, data.rating, data.comment, is_admin=is_admin,
+        )
+    except TaskNotFoundError as e:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e)) from e
+    except InvalidTaskDataError as e:
+        raise HTTPException(status_code=HTTPStatus.CONFLICT, detail=str(e)) from e
+    return _task_to_response(task)
+
+
+@router.post("/{task_id}/duplicate", status_code=HTTPStatus.CREATED)
+async def duplicate_task_view(
+    task_id: int,
+    data: TaskDuplicateRequest,
+    task_service: Annotated[TaskService, Depends(TaskService)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> TaskResponse:
+    """Clone an existing task's template + slot_data into a new task for a different phone."""
+    is_admin = current_user.role == UserRole.ADMIN
+    try:
+        source = await task_service.get_task(task_id, current_user.id, is_admin=is_admin)
+    except TaskNotFoundError as e:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e)) from e
+
+    new_task_data = TaskCreate(
+        target_phone=data.target_phone,
+        template_id=source.template_id,
+        slot_data=dict(source.slot_data),
+        scheduled_time=data.scheduled_time,
+    )
+    try:
+        new_task = await task_service.create_task(
+            new_task_data, current_user.id, is_admin=is_admin,
+        )
+    except InvalidTaskDataError as e:
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e)) from e
+    except (PhoneRateLimitExceededError, UserDailyQuotaExceededError) as e:
+        raise HTTPException(status_code=HTTPStatus.TOO_MANY_REQUESTS, detail=str(e)) from e
+    return _task_to_response(new_task)
 
 
 @router.post("/{task_id}/retry")

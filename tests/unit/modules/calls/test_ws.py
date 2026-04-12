@@ -103,6 +103,9 @@ async def test_call_status_ws_authorized_connects_and_cleans_up_on_disconnect() 
     with patch(
         "app.modules.calls.ws._authenticate_ws",
         new=AsyncMock(return_value=(42, False)),
+    ), patch(
+        "app.modules.calls.ws._user_may_listen",
+        new=AsyncMock(return_value=True),
     ), patch("app.modules.calls.ws.call_broadcaster") as mock_broadcaster:
         mock_broadcaster.connect = AsyncMock()
         mock_broadcaster.disconnect = AsyncMock()
@@ -111,6 +114,42 @@ async def test_call_status_ws_authorized_connects_and_cleans_up_on_disconnect() 
 
     mock_broadcaster.connect.assert_awaited_once_with(5, websocket)
     mock_broadcaster.disconnect.assert_awaited_once_with(5, websocket)
+
+
+@pytest.mark.asyncio
+async def test_call_status_ws_non_owner_rejected() -> None:
+    websocket = MagicMock()
+    websocket.close = AsyncMock()
+
+    with patch(
+        "app.modules.calls.ws._authenticate_ws",
+        new=AsyncMock(return_value=(42, False)),
+    ), patch(
+        "app.modules.calls.ws._user_may_listen",
+        new=AsyncMock(return_value=False),
+    ), patch("app.modules.calls.ws.call_broadcaster") as mock_broadcaster:
+        await call_status_ws(websocket=websocket, task_id=5, token="ok")
+
+    websocket.close.assert_awaited_once()
+    mock_broadcaster.connect.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_call_status_ws_admin_listens_to_any_task() -> None:
+    websocket = MagicMock()
+    websocket.receive_text = AsyncMock(side_effect=WebSocketDisconnect())
+    websocket.close = AsyncMock()
+
+    with patch(
+        "app.modules.calls.ws._authenticate_ws",
+        new=AsyncMock(return_value=(1, True)),
+    ), patch("app.modules.calls.ws.call_broadcaster") as mock_broadcaster:
+        mock_broadcaster.connect = AsyncMock()
+        mock_broadcaster.disconnect = AsyncMock()
+
+        await call_status_ws(websocket=websocket, task_id=999, token="admin-token")
+
+    mock_broadcaster.connect.assert_awaited_once_with(999, websocket)
 
 
 @pytest.mark.asyncio

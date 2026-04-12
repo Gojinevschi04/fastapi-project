@@ -11,6 +11,7 @@ from app.modules.tasks.exceptions import (
     TaskNotCancellableError,
     TaskNotEditableError,
     TaskNotFoundError,
+    UserDailyQuotaExceededError,
 )
 from app.modules.tasks.models import Task
 from app.modules.tasks.repository import TaskRepository
@@ -30,7 +31,7 @@ class TaskService:
         self.task_repository = task_repository
         self.template_repository = template_repository
 
-    async def create_task(self, data: TaskCreate, user_id: int) -> Task:
+    async def create_task(self, data: TaskCreate, user_id: int, is_admin: bool = False) -> Task:
         template = await self.template_repository.get_by_id(data.template_id)
         if not template:
             raise TemplateNotFoundError(f"Template with id {data.template_id} not found")
@@ -45,6 +46,14 @@ class TaskService:
                 f"Phone {data.target_phone} already has {recent_count} calls in the last 24 hours "
                 f"(limit: {settings.MAX_CALLS_PER_PHONE_PER_DAY}). Try again tomorrow."
             )
+
+        if not is_admin:
+            user_count = await self.task_repository.count_by_user_in_last_24h(user_id)
+            if user_count >= settings.MAX_CALLS_PER_USER_PER_DAY:
+                raise UserDailyQuotaExceededError(
+                    f"You've created {user_count} tasks in the last 24 hours "
+                    f"(limit: {settings.MAX_CALLS_PER_USER_PER_DAY}). Try again tomorrow."
+                )
 
         status = TaskStatus.SCHEDULED if data.scheduled_time else TaskStatus.PENDING
 
@@ -158,6 +167,25 @@ class TaskService:
 
         await log_line_repo.delete_by_session_id(call_session.id)
         await call_session_repo.delete(call_session)
+
+    async def rate_task(
+        self, task_id: int, user_id: int, rating: int, comment: str | None, is_admin: bool = False,
+    ) -> Task:
+        if is_admin:
+            task = await self.task_repository.get_by_id_any_user(task_id)
+        else:
+            task = await self.task_repository.get_by_id(task_id, user_id)
+        if not task:
+            raise TaskNotFoundError(f"Task with id {task_id} not found")
+
+        if task.status not in (TaskStatus.COMPLETED, TaskStatus.FAILED):
+            raise InvalidTaskDataError(
+                f"Only completed or failed tasks can be rated (current status: {task.status})"
+            )
+
+        task.user_rating = rating
+        task.user_rating_comment = comment
+        return await self.task_repository.update(task)
 
     async def get_stats(self, user_id: int) -> TaskStatsResponse:
         counts = await self.task_repository.count_by_status(user_id)

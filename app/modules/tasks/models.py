@@ -18,3 +18,5 @@ class Task(BaseModel, table=True):
     error_reason: str | None = Field(default=None, nullable=True)
     retry_count: int = Field(default=0, nullable=False)
     next_retry_at: datetime | None = Field(default=None, nullable=True, index=True)
+    user_rating: int | None = Field(default=None, nullable=True)
+    user_rating_comment: str | None = Field(default=None, nullable=True)

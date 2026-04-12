@@ -16,7 +16,7 @@ from app.modules.templates.exceptions import TemplateNotFoundError
 @pytest.mark.asyncio
 async def test_create_task(authenticated_client: AsyncClient) -> None:
     with patch("app.modules.tasks.service.TaskService.create_task") as mock_create:
-        mock_task = MagicMock()
+        mock_task = MagicMock(retry_count=0, next_retry_at=None, user_rating=None, user_rating_comment=None)
         mock_task.id = 1
         mock_task.target_phone = "+37312345678"
         mock_task.status = TaskStatus.PENDING
@@ -52,7 +52,7 @@ async def test_create_task_template_not_found(authenticated_client: AsyncClient)
 @pytest.mark.asyncio
 async def test_get_tasks(authenticated_client: AsyncClient) -> None:
     with patch("app.modules.tasks.service.TaskService.get_tasks") as mock_get:
-        mock_task = MagicMock()
+        mock_task = MagicMock(retry_count=0, next_retry_at=None, user_rating=None, user_rating_comment=None)
         mock_task.id = 1
         mock_task.target_phone = "+37312345678"
         mock_task.status = TaskStatus.PENDING
@@ -94,7 +94,7 @@ async def test_get_task_stats(authenticated_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_get_task(authenticated_client: AsyncClient) -> None:
-    mock_task = MagicMock()
+    mock_task = MagicMock(retry_count=0, next_retry_at=None, user_rating=None, user_rating_comment=None)
     mock_task.id = 1
     mock_task.target_phone = "+37312345678"
     mock_task.status = TaskStatus.COMPLETED
@@ -133,7 +133,7 @@ async def test_get_task_not_found(authenticated_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_cancel_task(authenticated_client: AsyncClient) -> None:
     with patch("app.modules.tasks.service.TaskService.cancel_task") as mock_cancel:
-        mock_task = MagicMock()
+        mock_task = MagicMock(retry_count=0, next_retry_at=None, user_rating=None, user_rating_comment=None)
         mock_task.status = TaskStatus.FAILED
         mock_cancel.return_value = mock_task
         response = await authenticated_client.post("/tasks/1/cancel")
@@ -151,7 +151,7 @@ async def test_cancel_task_not_cancellable(authenticated_client: AsyncClient) ->
 
 @pytest.mark.asyncio
 async def test_execute_task(authenticated_client: AsyncClient) -> None:
-    mock_task = MagicMock()
+    mock_task = MagicMock(retry_count=0, next_retry_at=None, user_rating=None, user_rating_comment=None)
     mock_task.id = 1
     mock_task.target_phone = "+37312345678"
     mock_task.status = TaskStatus.PENDING
@@ -206,7 +206,7 @@ async def test_get_task_stats_unauthenticated(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_execute_completed_task(authenticated_client: AsyncClient) -> None:
-    mock_task = MagicMock()
+    mock_task = MagicMock(retry_count=0, next_retry_at=None, user_rating=None, user_rating_comment=None)
     mock_task.status = TaskStatus.COMPLETED
 
     with patch("app.modules.tasks.service.TaskService.get_task", new_callable=AsyncMock) as mock_get:
@@ -338,7 +338,7 @@ async def test_execute_task_unauthenticated(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_edit_task_success(authenticated_client: AsyncClient) -> None:
     with patch("app.modules.tasks.service.TaskService.edit_task") as mock_edit:
-        mock_task = MagicMock()
+        mock_task = MagicMock(retry_count=0, next_retry_at=None, user_rating=None, user_rating_comment=None)
         mock_task.id = 1
         mock_task.target_phone = "+37399999999"
         mock_task.status = TaskStatus.PENDING
@@ -391,7 +391,7 @@ async def test_create_scheduled_task_triggers_email_notification(authenticated_c
     from datetime import datetime, timedelta
 
     future_time = datetime.now() + timedelta(days=3)
-    scheduled_task = MagicMock()
+    scheduled_task = MagicMock(retry_count=0, next_retry_at=None, user_rating=None, user_rating_comment=None)
     scheduled_task.id = 1
     scheduled_task.target_phone = "+37312345678"
     scheduled_task.status = TaskStatus.SCHEDULED
@@ -486,7 +486,7 @@ async def test_export_tasks_unauthenticated(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_retry_task_success(authenticated_client: AsyncClient) -> None:
-    retried_task = MagicMock()
+    retried_task = MagicMock(retry_count=1, next_retry_at=None, user_rating=None, user_rating_comment=None)
     retried_task.id = 1
     retried_task.target_phone = "+37312345678"
     retried_task.status = TaskStatus.PENDING

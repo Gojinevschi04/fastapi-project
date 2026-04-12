@@ -23,6 +23,7 @@ async def test_create_task_success(mock_task: Task, mock_template: DialogTemplat
     mock_task_repo = MagicMock(spec=TaskRepository)
     mock_task_repo.create = AsyncMock(return_value=mock_task)
     mock_task_repo.count_by_phone_in_last_24h = AsyncMock(return_value=0)
+    mock_task_repo.count_by_user_in_last_24h = AsyncMock(return_value=0)
     mock_template_repo = MagicMock(spec=TemplateRepository)
     mock_template_repo.get_by_id = AsyncMock(return_value=mock_template)
 
@@ -149,6 +150,7 @@ async def test_create_task_with_scheduled_time(mock_template: DialogTemplate) ->
     mock_task_repo = MagicMock(spec=TaskRepository)
     mock_task_repo.create = AsyncMock(return_value=scheduled_task)
     mock_task_repo.count_by_phone_in_last_24h = AsyncMock(return_value=0)
+    mock_task_repo.count_by_user_in_last_24h = AsyncMock(return_value=0)
     mock_template_repo = MagicMock(spec=TemplateRepository)
     mock_template_repo.get_by_id = AsyncMock(return_value=mock_template)
 
@@ -566,6 +568,7 @@ async def test_create_task_allowed_below_rate_limit(mock_task: Task, mock_templa
     mock_task_repo = MagicMock(spec=TaskRepository)
     mock_task_repo.create = AsyncMock(return_value=mock_task)
     mock_task_repo.count_by_phone_in_last_24h = AsyncMock(return_value=2)
+    mock_task_repo.count_by_user_in_last_24h = AsyncMock(return_value=0)
     mock_template_repo = MagicMock(spec=TemplateRepository)
     mock_template_repo.get_by_id = AsyncMock(return_value=mock_template)
 

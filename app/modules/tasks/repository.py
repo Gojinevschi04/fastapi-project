@@ -105,3 +105,13 @@ class TaskRepository(Repository):
             .where(Task.target_phone == target_phone, Task.created_at >= cutoff)
         )
         return result.one()
+
+    async def count_by_user_in_last_24h(self, user_id: int) -> int:
+        """Count tasks created by a given user in the last 24 hours."""
+        cutoff = datetime.now() - timedelta(hours=24)
+        result = await self._session.exec(
+            select(func.count())
+            .select_from(Task)
+            .where(Task.user_id == user_id, Task.created_at >= cutoff)
+        )
+        return result.one()

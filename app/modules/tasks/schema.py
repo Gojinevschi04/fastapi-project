@@ -114,6 +114,56 @@ class TaskEditRequest(BaseModel):
         return v
 
 
+class TaskRatingRequest(BaseModel):
+    """User feedback on a completed/failed call."""
+
+    rating: int
+    comment: str | None = None
+
+    @field_validator("rating")
+    @classmethod
+    def validate_rating(cls, v: int) -> int:
+        if v not in (1, 2, 3, 4, 5):
+            raise ValueError("Rating must be an integer 1-5")
+        return v
+
+    @field_validator("comment")
+    @classmethod
+    def validate_comment(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 1000:
+            raise ValueError("Comment must be 1000 characters or fewer")
+        return v
+
+
+class TaskDuplicateRequest(BaseModel):
+    """Duplicate an existing task into a new task for a different phone."""
+
+    target_phone: str
+    scheduled_time: datetime | None = None
+
+    @field_validator("target_phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        if not PHONE_REGEX.match(v):
+            raise ValueError("Invalid phone number format. Expected: +XXXXXXXXXXX")
+        return v
+
+    @field_validator("scheduled_time")
+    @classmethod
+    def validate_scheduled_time(cls, v: datetime | None) -> datetime | None:
+        if v is None:
+            return v
+        if v <= datetime.now():
+            raise ValueError("Scheduled time must be in the future")
+        from app.core.config import settings
+        if not (settings.CALL_WINDOW_START_HOUR <= v.hour < settings.CALL_WINDOW_END_HOUR):
+            raise ValueError(
+                f"Scheduled time must be within call hours "
+                f"({settings.CALL_WINDOW_START_HOUR:02d}:00-{settings.CALL_WINDOW_END_HOUR:02d}:00)"
+            )
+        return v
+
+
 class TaskResponse(BaseModel):
     id: int
     target_phone: str
@@ -127,6 +177,8 @@ class TaskResponse(BaseModel):
     error_reason: str | None
     retry_count: int = 0
     next_retry_at: datetime | None = None
+    user_rating: int | None = None
+    user_rating_comment: str | None = None
     created_at: datetime
     updated_at: datetime
 
