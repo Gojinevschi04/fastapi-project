@@ -53,19 +53,6 @@ def test_compute_ws_url_trailing_slash() -> None:
         assert manager._compute_ws_url() == "wss://example.com//ws/media-stream"
 
 
-def test_escape_xml_replaces_all_special_chars() -> None:
-    escaped = RealtimeCallManager._escape_xml('<tag attr="v">&\'</tag>')
-    assert "<" not in escaped
-    assert ">" not in escaped
-    assert '"' not in escaped
-    assert "'" not in escaped
-    assert "&amp;" in escaped
-    assert "&lt;" in escaped
-    assert "&gt;" in escaped
-    assert "&quot;" in escaped
-    assert "&apos;" in escaped
-
-
 def test_resolve_phone_with_override() -> None:
     manager, *_ = _make_manager_with_mocks()
     with patch("app.core.config.settings.TEST_PHONE_OVERRIDE", "+37360000000"):

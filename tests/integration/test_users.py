@@ -335,3 +335,30 @@ async def test_create_user_unauthenticated(client: AsyncClient) -> None:
 async def test_get_users_non_admin(authenticated_client: AsyncClient) -> None:
     response = await authenticated_client.get("/users/")
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_usage_returns_cost_summary(authenticated_client: AsyncClient) -> None:
+    from app.modules.users.schema import UserUsageResponse
+
+    with patch("app.modules.users.service.UserService.get_usage") as mock_usage:
+        mock_usage.return_value = UserUsageResponse(
+            call_count=3,
+            input_audio_tokens=500,
+            output_audio_tokens=1000,
+            input_text_tokens=200,
+            output_text_tokens=150,
+            estimated_cost_usd=0.0825,
+        )
+        response = await authenticated_client.get("/users/me/usage")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["call_count"] == 3
+        assert data["estimated_cost_usd"] == 0.0825
+        assert data["input_audio_tokens"] == 500
+
+
+@pytest.mark.asyncio
+async def test_get_usage_requires_auth(client: AsyncClient) -> None:
+    response = await client.get("/users/me/usage")
+    assert response.status_code in (401, 403)

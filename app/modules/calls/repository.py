@@ -30,6 +30,31 @@ class CallSessionRepository(Repository):
         result = await self._session.exec(select(func.count()).select_from(CallSession))
         return result.one()
 
+    async def get_usage_for_user(self, user_id: int) -> dict[str, int]:
+        """Sum token counts across all call sessions owned by a user (via their tasks)."""
+        from app.modules.tasks.models import Task
+
+        result = await self._session.exec(
+            select(
+                func.coalesce(func.sum(CallSession.input_audio_tokens), 0),
+                func.coalesce(func.sum(CallSession.output_audio_tokens), 0),
+                func.coalesce(func.sum(CallSession.input_text_tokens), 0),
+                func.coalesce(func.sum(CallSession.output_text_tokens), 0),
+                func.count(CallSession.id),
+            )
+            .select_from(CallSession)
+            .join(Task, Task.id == CallSession.task_id)
+            .where(Task.user_id == user_id)
+        )
+        input_audio, output_audio, input_text, output_text, call_count = result.one()
+        return {
+            "input_audio_tokens": input_audio,
+            "output_audio_tokens": output_audio,
+            "input_text_tokens": input_text,
+            "output_text_tokens": output_text,
+            "call_count": call_count,
+        }
+
 
 class LogLineRepository(Repository):
     async def create(self, log_line: LogLine) -> LogLine:

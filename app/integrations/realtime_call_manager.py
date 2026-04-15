@@ -13,7 +13,6 @@ from fastapi import Depends
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.ws_manager import call_broadcaster
-from app.integrations.prompt_builder import PromptBuilder
 from app.integrations.twilio_adapter import TwilioAdapter
 from app.modules.calls.models import CallSession
 from app.modules.calls.repository import CallSessionRepository, LogLineRepository
@@ -133,16 +132,6 @@ class RealtimeCallManager:
             return "ws://" + base_url[len("http://"):] + "/ws/media-stream"
         return base_url.rstrip("/") + "/ws/media-stream"
 
-    @staticmethod
-    def _escape_xml(text: str) -> str:
-        return (
-            text.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;")
-            .replace("'", "&apos;")
-        )
-
     def _resolve_phone(self, target_phone: str) -> str:
         if settings.TEST_PHONE_OVERRIDE:
             logger.info(
@@ -155,22 +144,3 @@ class RealtimeCallManager:
     async def _emit(self, task_id: int, event: str, data: dict | None = None) -> None:
         if call_broadcaster.has_listeners(task_id):
             await call_broadcaster.emit(task_id, event, data)
-
-    async def _build_prior_attempt_context(self, task_id: int) -> str | None:
-        """Fetch the previous call's transcript for this task (if any) so the AI can resume.
-
-        Returns a short formatted string of 'Speaker: text' lines, or None if no prior attempt.
-        """
-        call_session = await self.call_session_repository.get_by_task_id(task_id)
-        if not call_session:
-            return None
-        log_lines = await self.log_line_repository.get_by_session_id(call_session.id)
-        if not log_lines:
-            return None
-
-        from app.modules.calls.schema import Speaker
-        formatted_lines = []
-        for line in log_lines:
-            speaker_label = "Agent" if line.speaker == Speaker.AGENT else "Interlocutor"
-            formatted_lines.append(f"{speaker_label}: {line.text}")
-        return "\n".join(formatted_lines[-20:])

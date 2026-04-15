@@ -15,6 +15,7 @@ from app.modules.users.schema import (
     UserListResponse,
     UserResponse,
     UserUpdate,
+    UserUsageResponse,
 )
 from app.modules.users.service import UserService
 
@@ -27,6 +28,14 @@ async def get_profile_view(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> UserResponse:
     return await user_service.get_profile(current_user.id)
+
+
+@router.get("/me/usage", response_model=UserUsageResponse)
+async def get_usage_view(
+    user_service: Annotated[UserService, Depends(UserService)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> UserUsageResponse:
+    return await user_service.get_usage(current_user.id)
 
 
 @router.put("/me")

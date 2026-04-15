@@ -80,6 +80,17 @@ class ProfileUpdate(BaseModel):
     webhook_url: str | None = None
 
 
+class UserUsageResponse(BaseModel):
+    """Aggregate OpenAI Realtime token usage + estimated cost for a user's calls."""
+
+    call_count: int
+    input_audio_tokens: int
+    output_audio_tokens: int
+    input_text_tokens: int
+    output_text_tokens: int
+    estimated_cost_usd: float
+
+
 class ChangePassword(BaseModel):
     current_password: str
     new_password: str

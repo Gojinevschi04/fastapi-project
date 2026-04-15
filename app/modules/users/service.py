@@ -4,6 +4,8 @@ from fastapi import Depends
 
 from app.core.logging import get_logger
 from app.modules.auth.service import AuthService
+from app.modules.calls.pricing import estimate_cost_usd
+from app.modules.calls.repository import CallSessionRepository
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schema import (
@@ -14,6 +16,7 @@ from app.modules.users.schema import (
     UserResponse,
     UserRole,
     UserUpdate,
+    UserUsageResponse,
 )
 
 logger = get_logger(__name__)
@@ -23,8 +26,27 @@ class UserService:
     def __init__(
         self,
         user_repository: Annotated[UserRepository, Depends(UserRepository)],
+        call_session_repository: Annotated[CallSessionRepository, Depends(CallSessionRepository)],
     ) -> None:
         self.user_repository = user_repository
+        self.call_session_repository = call_session_repository
+
+    async def get_usage(self, user_id: int) -> UserUsageResponse:
+        totals = await self.call_session_repository.get_usage_for_user(user_id)
+        estimated_cost = estimate_cost_usd(
+            totals["input_audio_tokens"],
+            totals["output_audio_tokens"],
+            totals["input_text_tokens"],
+            totals["output_text_tokens"],
+        )
+        return UserUsageResponse(
+            call_count=totals["call_count"],
+            input_audio_tokens=totals["input_audio_tokens"],
+            output_audio_tokens=totals["output_audio_tokens"],
+            input_text_tokens=totals["input_text_tokens"],
+            output_text_tokens=totals["output_text_tokens"],
+            estimated_cost_usd=estimated_cost,
+        )
 
     def _to_response(self, user: User) -> UserResponse:
         return UserResponse(

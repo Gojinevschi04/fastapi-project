@@ -91,6 +91,37 @@ async def test_count_total_zero(mock_session: MagicMock) -> None:
     assert result == 0
 
 
+@pytest.mark.asyncio
+async def test_get_usage_for_user_returns_aggregated_totals(mock_session: MagicMock) -> None:
+    mock_result = MagicMock()
+    mock_result.one.return_value = (1200, 3400, 800, 560, 4)
+    mock_session.exec = AsyncMock(return_value=mock_result)
+
+    repo = CallSessionRepository(session=mock_session)
+    totals = await repo.get_usage_for_user(user_id=1)
+
+    assert totals == {
+        "input_audio_tokens": 1200,
+        "output_audio_tokens": 3400,
+        "input_text_tokens": 800,
+        "output_text_tokens": 560,
+        "call_count": 4,
+    }
+
+
+@pytest.mark.asyncio
+async def test_get_usage_for_user_no_sessions_returns_zeros(mock_session: MagicMock) -> None:
+    mock_result = MagicMock()
+    mock_result.one.return_value = (0, 0, 0, 0, 0)
+    mock_session.exec = AsyncMock(return_value=mock_result)
+
+    repo = CallSessionRepository(session=mock_session)
+    totals = await repo.get_usage_for_user(user_id=999)
+
+    assert totals["call_count"] == 0
+    assert totals["input_audio_tokens"] == 0
+
+
 # --- LogLineRepository ---
 
 
