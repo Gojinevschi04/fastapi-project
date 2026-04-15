@@ -84,7 +84,6 @@ def test_build_stream_twiml_contains_all_parameters() -> None:
         task_id=42,
         user_id=7,
         language="ro",
-        system_prompt="You are Ana.",
         media_stream_ws_url="wss://example.com/ws/media-stream",
     )
     assert "<Connect>" in twiml
@@ -92,23 +91,19 @@ def test_build_stream_twiml_contains_all_parameters() -> None:
     assert 'name="task_id" value="42"' in twiml
     assert 'name="user_id" value="7"' in twiml
     assert 'name="language" value="ro"' in twiml
-    assert "You are Ana." in twiml
 
 
-def test_build_stream_twiml_escapes_system_prompt() -> None:
+def test_build_stream_twiml_stays_under_twilio_4000_limit() -> None:
+    """TwiML must be well under 4000 chars — prompt is rebuilt server-side, not embedded."""
     manager, *_ = _make_manager_with_mocks()
     twiml = manager._build_stream_twiml(
-        task_id=1,
-        user_id=1,
+        task_id=999999,
+        user_id=999999,
         language="en",
-        system_prompt='Prompt with "quotes" & <tags>.',
         media_stream_ws_url="wss://example.com/ws/media-stream",
     )
-    assert '"quotes"' not in twiml
-    assert "<tags>" not in twiml.replace("<Connect>", "").replace("<Response>", "").replace("<Stream", "")
-    assert "&quot;" in twiml
-    assert "&amp;" in twiml
-    assert "&lt;tags&gt;" in twiml
+    assert len(twiml) < 4000
+    assert "system_prompt" not in twiml
 
 
 @pytest.mark.asyncio

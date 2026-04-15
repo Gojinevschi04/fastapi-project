@@ -12,6 +12,7 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.core.config import settings
 from app.core.database import async_session
 from app.core.logging import get_logger
 from app.core.ws_manager import call_broadcaster
@@ -53,8 +54,13 @@ async def media_stream(websocket: WebSocket) -> None:
     task_id = params["task_id"]
     user_id = params["user_id"]
     language = params["language"]
-    system_prompt = params["system_prompt"]
     start_event = params["start_event"]
+
+    system_prompt = await _build_system_prompt_for_task(task_id, language)
+    if system_prompt is None:
+        logger.error("[task=%d] Cannot build system prompt (task or template missing)", task_id)
+        await websocket.close()
+        return
 
     stream_sid = start_event.get("start", {}).get("streamSid")
     call_sid = start_event.get("start", {}).get("callSid")
@@ -86,6 +92,47 @@ async def media_stream(websocket: WebSocket) -> None:
         logger.info("[task=%d] Call finalized", task_id)
 
 
+async def _build_system_prompt_for_task(task_id: int, language: str) -> str | None:
+    """Rebuild the system prompt server-side from the DB.
+
+    The prompt is too long to fit in TwiML <Parameter> (Twilio caps TwiML at 4000
+    chars), so we pass only task_id via TwiML and reconstruct the prompt here.
+    Returns None if the task or template cannot be loaded.
+    """
+    async with async_session() as session:
+        task_repo = TaskRepository(session=session)
+        template_repo = TemplateRepository(session=session)
+        call_session_repo = CallSessionRepository(session=session)
+        log_line_repo = LogLineRepository(session=session)
+
+        task = await task_repo.get_by_id_any_user(task_id)
+        if not task:
+            return None
+        template = await template_repo.get_by_id(task.template_id)
+        if not template:
+            return None
+
+        prior_context = None
+        call_session = await call_session_repo.get_by_task_id(task_id)
+        if call_session:
+            log_lines = await log_line_repo.get_by_session_id(call_session.id)
+            if log_lines:
+                formatted_lines = [
+                    f"{'Agent' if line.speaker == Speaker.AGENT else 'Interlocutor'}: {line.text}"
+                    for line in log_lines
+                ]
+                prior_context = "\n".join(formatted_lines[-20:])
+
+        return PromptBuilder.build_system_prompt(
+            template.base_script,
+            task.slot_data,
+            language,
+            use_function_tool=True,
+            require_ai_disclosure=settings.AI_DISCLOSURE_REQUIRED,
+            prior_attempt_context=prior_context,
+        )
+
+
 async def _wait_for_start(websocket: WebSocket) -> dict[str, Any] | None:
     """Wait for the 'start' event from Twilio and extract custom parameters."""
     try:
@@ -106,7 +153,6 @@ async def _wait_for_start(websocket: WebSocket) -> dict[str, Any] | None:
                     "task_id": int(task_id_str),
                     "user_id": int(user_id_str),
                     "language": custom_parameters.get("language", "en"),
-                    "system_prompt": custom_parameters.get("system_prompt", ""),
                     "start_event": message,
                 }
             logger.warning("Unexpected event before start: %s", event_name)

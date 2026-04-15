@@ -152,7 +152,6 @@ async def test_wait_for_start_extracts_custom_parameters() -> None:
                 "task_id": "42",
                 "user_id": "7",
                 "language": "ro",
-                "system_prompt": "You are Ana.",
             },
         },
     }
@@ -166,7 +165,7 @@ async def test_wait_for_start_extracts_custom_parameters() -> None:
     assert result["task_id"] == 42
     assert result["user_id"] == 7
     assert result["language"] == "ro"
-    assert result["system_prompt"] == "You are Ana."
+    assert "system_prompt" not in result
 
 
 @pytest.mark.asyncio

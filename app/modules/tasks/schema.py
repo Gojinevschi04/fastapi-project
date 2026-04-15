@@ -17,6 +17,10 @@ class TaskStatus(StrEnum):
 
 PHONE_REGEX = re.compile(r"^\+?[1-9]\d{7,14}$")
 
+MIN_RATING = 1
+MAX_RATING = 5
+MAX_RATING_COMMENT_LENGTH = 1000
+
 
 class TaskBase(BaseModel):
     target_phone: str
@@ -122,17 +126,17 @@ class TaskRatingRequest(BaseModel):
 
     @field_validator("rating")
     @classmethod
-    def validate_rating(cls, v: int) -> int:
-        if v not in (1, 2, 3, 4, 5):
-            raise ValueError("Rating must be an integer 1-5")
-        return v
+    def validate_rating(cls, rating: int) -> int:
+        if not MIN_RATING <= rating <= MAX_RATING:
+            raise ValueError(f"Rating must be an integer {MIN_RATING}-{MAX_RATING}")
+        return rating
 
     @field_validator("comment")
     @classmethod
-    def validate_comment(cls, v: str | None) -> str | None:
-        if v is not None and len(v) > 1000:
-            raise ValueError("Comment must be 1000 characters or fewer")
-        return v
+    def validate_comment(cls, comment: str | None) -> str | None:
+        if comment is not None and len(comment) > MAX_RATING_COMMENT_LENGTH:
+            raise ValueError(f"Comment must be {MAX_RATING_COMMENT_LENGTH} characters or fewer")
+        return comment
 
 
 class TaskDuplicateRequest(BaseModel):
@@ -143,25 +147,25 @@ class TaskDuplicateRequest(BaseModel):
 
     @field_validator("target_phone")
     @classmethod
-    def validate_phone(cls, v: str) -> str:
-        if not PHONE_REGEX.match(v):
+    def validate_phone(cls, phone: str) -> str:
+        if not PHONE_REGEX.match(phone):
             raise ValueError("Invalid phone number format. Expected: +XXXXXXXXXXX")
-        return v
+        return phone
 
     @field_validator("scheduled_time")
     @classmethod
-    def validate_scheduled_time(cls, v: datetime | None) -> datetime | None:
-        if v is None:
-            return v
-        if v <= datetime.now():
+    def validate_scheduled_time(cls, scheduled_time: datetime | None) -> datetime | None:
+        if scheduled_time is None:
+            return scheduled_time
+        if scheduled_time <= datetime.now():
             raise ValueError("Scheduled time must be in the future")
         from app.core.config import settings
-        if not (settings.CALL_WINDOW_START_HOUR <= v.hour < settings.CALL_WINDOW_END_HOUR):
+        if not (settings.CALL_WINDOW_START_HOUR <= scheduled_time.hour < settings.CALL_WINDOW_END_HOUR):
             raise ValueError(
                 f"Scheduled time must be within call hours "
                 f"({settings.CALL_WINDOW_START_HOUR:02d}:00-{settings.CALL_WINDOW_END_HOUR:02d}:00)"
             )
-        return v
+        return scheduled_time
 
 
 class TaskResponse(BaseModel):

@@ -76,21 +76,11 @@ class RealtimeCallManager:
         await self.call_session_repository.create(call_session)
         logger.info("[task=%d] CallSession created", task.id)
 
-        prior_context = await self._build_prior_attempt_context(task.id)
-        system_prompt = PromptBuilder.build_system_prompt(
-            template.base_script,
-            task.slot_data,
-            language,
-            use_function_tool=True,
-            require_ai_disclosure=settings.AI_DISCLOSURE_REQUIRED,
-            prior_attempt_context=prior_context,
-        )
-
         media_stream_ws_url = self._compute_ws_url()
         logger.info("[task=%d] Stream WS URL: %s", task.id, media_stream_ws_url)
 
         try:
-            twiml = self._build_stream_twiml(task_id, user_id, language, system_prompt, media_stream_ws_url)
+            twiml = self._build_stream_twiml(task_id, user_id, language, media_stream_ws_url)
             logger.info("[task=%d] Initiating Twilio call with Media Stream TwiML", task.id)
             call_sid = await self._voice.initiate_call_with_twiml(
                 to_phone=dial_phone,
@@ -117,10 +107,11 @@ class RealtimeCallManager:
         task_id: int,
         user_id: int,
         language: str,
-        system_prompt: str,
         media_stream_ws_url: str,
     ) -> str:
-        escaped_prompt = self._escape_xml(system_prompt)
+        """Build minimal TwiML. The system prompt is rebuilt server-side in the WS
+        handler using task_id — keeps TwiML well under Twilio's 4000-char limit.
+        """
         return (
             '<?xml version="1.0" encoding="UTF-8"?>'
             "<Response>"
@@ -129,7 +120,6 @@ class RealtimeCallManager:
             f'<Parameter name="task_id" value="{task_id}"/>'
             f'<Parameter name="user_id" value="{user_id}"/>'
             f'<Parameter name="language" value="{language}"/>'
-            f'<Parameter name="system_prompt" value="{escaped_prompt}"/>'
             "</Stream>"
             "</Connect>"
             "</Response>"

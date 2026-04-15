@@ -441,7 +441,12 @@ class RealtimeBridge:
             await self.openai_ws.send(json.dumps({
                 "type": "response.create",
                 "response": {
-                    "instructions": f"Speak ONLY in {lang_name}. Say a brief goodbye and end the call.",
+                    "instructions": (
+                        f"Speak ONLY in {lang_name}. Say a brief, courteous thank-you and goodbye "
+                        f"(one short sentence, e.g. 'Mulțumesc, o zi bună!' / 'Thank you, have a great day!'). "
+                        "Do NOT offer further help, do NOT say 'I'm here to help' or 'let me know if you need "
+                        "anything' — you were the caller, not a support agent. End the call."
+                    ),
                 },
             }))
             logger.info("[task=%d] Triggered farewell response; hangup queued", self.task_id)
