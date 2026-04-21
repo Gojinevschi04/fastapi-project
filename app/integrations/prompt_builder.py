@@ -37,7 +37,8 @@ class PromptBuilder:
         )
         greeting_stub = GREETING_EXAMPLES.get(language, GREETING_EXAMPLES["en"]).format(name=caller_name)
         disclosure_phrase = AI_DISCLOSURE_PHRASES.get(
-            language, AI_DISCLOSURE_PHRASES["en"],
+            language,
+            AI_DISCLOSURE_PHRASES["en"],
         ).format(name=caller_name)
 
         prompt = (
@@ -53,8 +54,8 @@ class PromptBuilder:
             prompt += (
                 "AI DISCLOSURE (legally required):\n"
                 "  - Your VERY FIRST sentence MUST disclose that you are an automated assistant.\n"
-                f"  - Example: \"{disclosure_phrase}\"\n"
-                "  - If the other party explicitly asks \"Am I speaking to a human or a bot?\" "
+                f'  - Example: "{disclosure_phrase}"\n'
+                '  - If the other party explicitly asks "Am I speaking to a human or a bot?" '
                 "or similar, answer truthfully that you are an automated assistant.\n\n"
             )
 
@@ -72,24 +73,24 @@ class PromptBuilder:
             )
 
         opening_suffix = (
-            f"  Example opening: \"{disclosure_phrase} I'm calling to ...\" "
-            "(continue with the specific reason)."
+            f'  Example opening: "{disclosure_phrase} I\'m calling to ..." (continue with the specific reason).'
             if require_ai_disclosure
-            else f"  Example opening: \"{greeting_stub}...\" (continue with the specific reason)."
+            else f'  Example opening: "{greeting_stub}..." (continue with the specific reason).'
         )
         prompt += (
             "OPENING — your VERY FIRST sentence MUST:\n"
             f"  1. Start with a natural greeting in {lang_name}"
-            + (" and the AI disclosure above" if require_ai_disclosure else "") + ".\n"
-            f"  2. State your name: \"{caller_name}\".\n"
+            + (" and the AI disclosure above" if require_ai_disclosure else "")
+            + ".\n"
+            f'  2. State your name: "{caller_name}".\n'
             "  3. State the SPECIFIC reason for calling using the details above (date, service, etc).\n"
             f"{opening_suffix}\n\n"
             "NEVER:\n"
-            "  - Ask \"how can I help you\" or \"what can I do for you\" — you are NOT answering a call.\n"
-            "  - Close the call with \"I'm here to help\", \"let me know if you need anything\", "
-            "\"feel free to contact me\", or any receptionist-style offer — YOU dialed THEM and they "
+            '  - Ask "how can I help you" or "what can I do for you" — you are NOT answering a call.\n'
+            '  - Close the call with "I\'m here to help", "let me know if you need anything", '
+            '"feel free to contact me", or any receptionist-style offer — YOU dialed THEM and they '
             "owe YOU nothing further. End with a simple thank-you and goodbye.\n"
-            "  - Talk about \"your upcoming event\" or other vague content — use the specific details above.\n"
+            '  - Talk about "your upcoming event" or other vague content — use the specific details above.\n'
             "  - Use placeholders like [Name], [Date].\n"
             "  - Invent a different name or reason than the details say.\n\n"
             "WRONG PERSON / WRONG NUMBER:\n"
@@ -105,8 +106,8 @@ class PromptBuilder:
             "Do NOT leave a message.\n\n"
             "HANDLING BAD AUDIO / UNINTELLIGIBLE RESPONSES:\n"
             f"  - If the other person's reply is garbled, noise, nonsense, or clearly in a different language, "
-            f"politely say in {lang_name}: \"Scuze, nu v-am auzit bine, puteți repeta?\" "
-            f"(adapt to {lang_name}: \"Sorry, I didn't catch that, could you repeat?\").\n"
+            f'politely say in {lang_name}: "Scuze, nu v-am auzit bine, puteți repeta?" '
+            f'(adapt to {lang_name}: "Sorry, I didn\'t catch that, could you repeat?").\n'
             "  - Do NOT switch languages to match garbled input — always stay in your task language.\n"
             "  - Do NOT repeat your full opening each time — just ask them to repeat.\n"
             "  - After 3 consecutive unintelligible or off-topic replies, give up politely, "

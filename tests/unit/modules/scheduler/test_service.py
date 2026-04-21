@@ -292,8 +292,12 @@ async def test_process_due_tasks_transitions_and_executes_each() -> None:
 
     transition_result = MagicMock()
     transition_result.first.return_value = Task(
-        id=1, target_phone="+37312345678", status=TaskStatus.SCHEDULED,
-        template_id=1, user_id=10, slot_data={},
+        id=1,
+        target_phone="+37312345678",
+        status=TaskStatus.SCHEDULED,
+        template_id=1,
+        user_id=10,
+        slot_data={},
     )
 
     mock_session = AsyncMock(spec=AsyncSession)
@@ -301,8 +305,10 @@ async def test_process_due_tasks_transitions_and_executes_each() -> None:
     mock_session.add = MagicMock()
     mock_session.commit = AsyncMock()
 
-    with patch("app.modules.scheduler.service.AsyncSession") as mock_session_cls, \
-         patch("app.modules.scheduler.task_executor.execute_due_task") as mock_execute:
+    with (
+        patch("app.modules.scheduler.service.AsyncSession") as mock_session_cls,
+        patch("app.modules.scheduler.task_executor.execute_due_task") as mock_execute,
+    ):
         mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
         mock_execute.return_value = AsyncMock()
@@ -328,8 +334,10 @@ async def test_process_due_tasks_swallows_per_task_errors() -> None:
     async def _fail_execute(task_id: int, user_id: int) -> None:
         raise RuntimeError(f"boom {task_id}")
 
-    with patch("app.modules.scheduler.service.AsyncSession") as mock_session_cls, \
-         patch("app.modules.scheduler.task_executor.execute_due_task", new=_fail_execute):
+    with (
+        patch("app.modules.scheduler.service.AsyncSession") as mock_session_cls,
+        patch("app.modules.scheduler.task_executor.execute_due_task", new=_fail_execute),
+    ):
         mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
 
@@ -348,8 +356,12 @@ async def test_process_retryable_tasks_resets_and_executes() -> None:
 
     mark_result = MagicMock()
     mark_result.first.return_value = Task(
-        id=5, target_phone="+37312345678", status=TaskStatus.FAILED,
-        template_id=1, user_id=50, slot_data={},
+        id=5,
+        target_phone="+37312345678",
+        status=TaskStatus.FAILED,
+        template_id=1,
+        user_id=50,
+        slot_data={},
         error_reason="Connection refused",
         retry_count=0,
     )
@@ -359,9 +371,10 @@ async def test_process_retryable_tasks_resets_and_executes() -> None:
     mock_session.add = MagicMock()
     mock_session.commit = AsyncMock()
 
-    with patch("app.modules.scheduler.service.AsyncSession") as mock_session_cls, \
-         patch("app.modules.scheduler.task_executor.execute_due_task",
-               new=AsyncMock()) as mock_execute:
+    with (
+        patch("app.modules.scheduler.service.AsyncSession") as mock_session_cls,
+        patch("app.modules.scheduler.task_executor.execute_due_task", new=AsyncMock()) as mock_execute,
+    ):
         mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
 
@@ -378,9 +391,10 @@ async def test_process_retryable_tasks_empty_is_noop() -> None:
     mock_session = AsyncMock(spec=AsyncSession)
     mock_session.exec = AsyncMock(return_value=empty_result)
 
-    with patch("app.modules.scheduler.service.AsyncSession") as mock_session_cls, \
-         patch("app.modules.scheduler.task_executor.execute_due_task",
-               new=AsyncMock()) as mock_execute:
+    with (
+        patch("app.modules.scheduler.service.AsyncSession") as mock_session_cls,
+        patch("app.modules.scheduler.task_executor.execute_due_task", new=AsyncMock()) as mock_execute,
+    ):
         mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
 
@@ -394,9 +408,14 @@ async def test_schedule_next_retry_uses_backoff_for_first_attempt() -> None:
     from app.modules.scheduler.service import RETRY_BACKOFF_MINUTES, schedule_next_retry
 
     task = Task(
-        id=1, target_phone="+37312345678", status=TaskStatus.FAILED,
-        template_id=1, user_id=1, slot_data={},
-        error_reason="Connection refused", retry_count=0,
+        id=1,
+        target_phone="+37312345678",
+        status=TaskStatus.FAILED,
+        template_id=1,
+        user_id=1,
+        slot_data={},
+        error_reason="Connection refused",
+        retry_count=0,
     )
 
     mock_result = MagicMock()
@@ -422,9 +441,14 @@ async def test_schedule_next_retry_uses_longer_backoff_for_later_attempts() -> N
     from app.modules.scheduler.service import RETRY_BACKOFF_MINUTES, schedule_next_retry
 
     task = Task(
-        id=1, target_phone="+37312345678", status=TaskStatus.FAILED,
-        template_id=1, user_id=1, slot_data={},
-        error_reason="network error", retry_count=2,
+        id=1,
+        target_phone="+37312345678",
+        status=TaskStatus.FAILED,
+        template_id=1,
+        user_id=1,
+        slot_data={},
+        error_reason="network error",
+        retry_count=2,
     )
 
     mock_result = MagicMock()
@@ -448,9 +472,14 @@ async def test_schedule_next_retry_clears_window_after_max_attempts() -> None:
     from app.modules.scheduler.service import MAX_RETRY_ATTEMPTS, schedule_next_retry
 
     task = Task(
-        id=1, target_phone="+37312345678", status=TaskStatus.FAILED,
-        template_id=1, user_id=1, slot_data={},
-        error_reason="timeout", retry_count=MAX_RETRY_ATTEMPTS,
+        id=1,
+        target_phone="+37312345678",
+        status=TaskStatus.FAILED,
+        template_id=1,
+        user_id=1,
+        slot_data={},
+        error_reason="timeout",
+        retry_count=MAX_RETRY_ATTEMPTS,
         next_retry_at=datetime.now() + timedelta(minutes=30),
     )
 
@@ -472,8 +501,12 @@ async def test_schedule_next_retry_noops_for_non_failed_task() -> None:
     from app.modules.scheduler.service import schedule_next_retry
 
     task = Task(
-        id=1, target_phone="+37312345678", status=TaskStatus.COMPLETED,
-        template_id=1, user_id=1, slot_data={},
+        id=1,
+        target_phone="+37312345678",
+        status=TaskStatus.COMPLETED,
+        template_id=1,
+        user_id=1,
+        slot_data={},
     )
 
     mock_result = MagicMock()
@@ -517,9 +550,14 @@ async def test_schedule_new_retry_windows_sets_next_retry_for_eligible_tasks() -
     ]
 
     task_for_retry = Task(
-        id=1, target_phone="+37312345678", status=TaskStatus.FAILED,
-        template_id=1, user_id=1, slot_data={},
-        error_reason="Connection refused", retry_count=0,
+        id=1,
+        target_phone="+37312345678",
+        status=TaskStatus.FAILED,
+        template_id=1,
+        user_id=1,
+        slot_data={},
+        error_reason="Connection refused",
+        retry_count=0,
     )
     fetch_result = MagicMock()
     fetch_result.first.return_value = task_for_retry

@@ -1,7 +1,10 @@
+from http import HTTPStatus
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, Response
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response
+from twilio.request_validator import RequestValidator
 
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.ws_manager import call_broadcaster
 from app.integrations.twilio_adapter import set_gather_result
@@ -14,7 +17,31 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
-@router.post("/calls/{task_id}")
+async def verify_twilio_signature(request: Request) -> None:
+    """Reject unsigned or forged Twilio webhook requests.
+
+    Twilio signs every webhook with HMAC-SHA1 over the full URL + sorted form
+    params, using TWILIO_AUTH_TOKEN as the secret. Rejecting unsigned requests
+    prevents an attacker from forging status/gather webhooks to hijack task state.
+
+    Bypassed in tests when TWILIO_AUTH_TOKEN is empty (test env).
+    """
+    if not settings.TWILIO_AUTH_TOKEN:
+        return
+
+    signature = request.headers.get("X-Twilio-Signature", "")
+    if not signature:
+        raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail="Missing Twilio signature")
+
+    validator = RequestValidator(settings.TWILIO_AUTH_TOKEN)
+    url = str(request.url)
+    form = await request.form()
+    params = {key: str(value) for key, value in form.items()}
+    if not validator.validate(url, params, signature):
+        raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail="Invalid Twilio signature")
+
+
+@router.post("/calls/{task_id}", dependencies=[Depends(verify_twilio_signature)])
 async def twilio_call_callback(
     task_id: int,
     task_repository: Annotated[TaskRepository, Depends(TaskRepository)],
@@ -28,16 +55,11 @@ async def twilio_call_callback(
     """
     logger.info("Twilio callback for task %d, SID=%s, status=%s", task_id, CallSid, CallStatus)
 
-    twiml = (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        "<Response>"
-        "<Pause length=\"30\"/>"
-        "</Response>"
-    )
+    twiml = '<?xml version="1.0" encoding="UTF-8"?><Response><Pause length="30"/></Response>'
     return Response(content=twiml, media_type="application/xml")
 
 
-@router.post("/calls/{task_id}/gather")
+@router.post("/calls/{task_id}/gather", dependencies=[Depends(verify_twilio_signature)])
 async def twilio_gather_callback(
     task_id: int,
     SpeechResult: str = Form(default=""),
@@ -60,16 +82,11 @@ async def twilio_gather_callback(
     if CallSid:
         set_gather_result(CallSid, SpeechResult or "")
 
-    twiml = (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        "<Response>"
-        "<Pause length=\"30\"/>"
-        "</Response>"
-    )
+    twiml = '<?xml version="1.0" encoding="UTF-8"?><Response><Pause length="30"/></Response>'
     return Response(content=twiml, media_type="application/xml")
 
 
-@router.post("/calls/{task_id}/status")
+@router.post("/calls/{task_id}/status", dependencies=[Depends(verify_twilio_signature)])
 async def twilio_status_callback(
     task_id: int,
     task_repository: Annotated[TaskRepository, Depends(TaskRepository)],
@@ -82,13 +99,17 @@ async def twilio_status_callback(
     """Twilio status callback — receives call state changes."""
     logger.info(
         "Twilio status update for task %d: SID=%s, status=%s, duration=%s, answered_by=%s",
-        task_id, CallSid, CallStatus, CallDuration, AnsweredBy,
+        task_id,
+        CallSid,
+        CallStatus,
+        CallDuration,
+        AnsweredBy,
     )
 
     if AnsweredBy and AnsweredBy.startswith("machine") and CallSid:
-        logger.warning("[task=%d] Voicemail/answering machine detected (%s), hanging up",
-                       task_id, AnsweredBy)
+        logger.warning("[task=%d] Voicemail/answering machine detected (%s), hanging up", task_id, AnsweredBy)
         from app.integrations.twilio_adapter import TwilioAdapter
+
         try:
             await TwilioAdapter().hangup(CallSid)
         except Exception:
@@ -99,11 +120,15 @@ async def twilio_status_callback(
             task.error_reason = f"Reached voicemail ({AnsweredBy})"
             await task_repository.update(task)
             if call_broadcaster.has_listeners(task_id):
-                await call_broadcaster.emit(task_id, "call_ended", {
-                    "status": TaskStatus.FAILED,
-                    "error_reason": task.error_reason,
-                    "summary": None,
-                })
+                await call_broadcaster.emit(
+                    task_id,
+                    "call_ended",
+                    {
+                        "status": TaskStatus.FAILED,
+                        "error_reason": task.error_reason,
+                        "summary": None,
+                    },
+                )
 
     if CallStatus == "completed":
         call_session = await call_session_repository.get_by_task_id(task_id)
@@ -128,16 +153,20 @@ async def twilio_status_callback(
             task.error_reason = f"Call {CallStatus} (recipient did not pick up)"
             await task_repository.update(task)
             if call_broadcaster.has_listeners(task_id):
-                await call_broadcaster.emit(task_id, "call_ended", {
-                    "status": TaskStatus.FAILED,
-                    "error_reason": task.error_reason,
-                    "summary": None,
-                })
+                await call_broadcaster.emit(
+                    task_id,
+                    "call_ended",
+                    {
+                        "status": TaskStatus.FAILED,
+                        "error_reason": task.error_reason,
+                        "summary": None,
+                    },
+                )
 
     return Response(content="<Response/>", media_type="application/xml")
 
 
-@router.post("/calls/{task_id}/recording")
+@router.post("/calls/{task_id}/recording", dependencies=[Depends(verify_twilio_signature)])
 async def twilio_recording_callback(
     task_id: int,
     call_session_repository: Annotated[CallSessionRepository, Depends(CallSessionRepository)],

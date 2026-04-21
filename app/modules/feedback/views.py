@@ -15,7 +15,5 @@ router = APIRouter(prefix="/feedback", tags=["feedback"])
 async def submit_feedback(data: FeedbackRequest) -> FeedbackResponse:
     """Public endpoint — no auth required."""
     email_service = EmailService()
-    asyncio.create_task(
-        email_service.send_feedback(data.name, data.email, data.message)
-    )
+    asyncio.create_task(email_service.send_feedback(data.name, data.email, data.message))
     return FeedbackResponse(message="Thank you for your feedback! We'll get back to you soon.")

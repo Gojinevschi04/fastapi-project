@@ -13,7 +13,12 @@ logger = get_logger(__name__)
 
 POLL_INTERVAL_SECONDS = 30
 RETRYABLE_ERROR_KEYWORDS = [
-    "connection", "timeout", "network", "refused", "retries", "realtime_init_failed",
+    "connection",
+    "timeout",
+    "network",
+    "refused",
+    "retries",
+    "realtime_init_failed",
 ]
 MAX_IN_PROGRESS_MINUTES = 10
 
@@ -72,8 +77,7 @@ async def mark_task_for_retry(session: AsyncSession, task_id: int) -> None:
         task.summary = None
         session.add(task)
         await session.commit()
-        logger.info("Task %d reset for retry (attempt %d, was: %s)",
-                    task_id, task.retry_count, original_error[:100])
+        logger.info("Task %d reset for retry (attempt %d, was: %s)", task_id, task.retry_count, original_error[:100])
 
 
 async def schedule_next_retry(session: AsyncSession, task_id: int) -> None:
@@ -97,8 +101,13 @@ async def schedule_next_retry(session: AsyncSession, task_id: int) -> None:
     task.next_retry_at = now + timedelta(minutes=delay_minutes)
     session.add(task)
     await session.commit()
-    logger.info("Task %d scheduled for retry in %d minutes (attempt %d/%d)",
-                task_id, delay_minutes, task.retry_count + 1, MAX_RETRY_ATTEMPTS)
+    logger.info(
+        "Task %d scheduled for retry in %d minutes (attempt %d/%d)",
+        task_id,
+        delay_minutes,
+        task.retry_count + 1,
+        MAX_RETRY_ATTEMPTS,
+    )
 
 
 async def transition_task(session: AsyncSession, task_id: int) -> None:

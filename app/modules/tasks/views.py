@@ -74,7 +74,9 @@ async def create_task_view(
 ) -> TaskResponse:
     try:
         task = await task_service.create_task(
-            data, current_user.id, is_admin=current_user.role == UserRole.ADMIN,
+            data,
+            current_user.id,
+            is_admin=current_user.role == UserRole.ADMIN,
         )
     except TemplateNotFoundError as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e)) from e
@@ -95,10 +97,15 @@ async def create_task_view(
             )
         )
 
-    asyncio.create_task(record_audit(
-        user_id=current_user.id, action="task.create", target_type="task", target_id=task.id,
-        details=f"phone={task.target_phone} template_id={task.template_id}",
-    ))
+    asyncio.create_task(
+        record_audit(
+            user_id=current_user.id,
+            action="task.create",
+            target_type="task",
+            target_id=task.id,
+            details=f"phone={task.target_phone} template_id={task.template_id}",
+        )
+    )
     return _task_to_response(task)
 
 
@@ -134,16 +141,18 @@ async def export_tasks_csv_view(
     writer = csv.writer(output)
     writer.writerow(["ID", "Phone", "Status", "Template ID", "Scheduled Time", "Summary", "Error", "Created"])
     for task in tasks:
-        writer.writerow([
-            task.id,
-            task.target_phone,
-            task.status,
-            task.template_id,
-            task.scheduled_time.isoformat() if task.scheduled_time else "",
-            task.summary or "",
-            task.error_reason or "",
-            task.created_at.isoformat(),
-        ])
+        writer.writerow(
+            [
+                task.id,
+                task.target_phone,
+                task.status,
+                task.template_id,
+                task.scheduled_time.isoformat() if task.scheduled_time else "",
+                task.summary or "",
+                task.error_reason or "",
+                task.created_at.isoformat(),
+            ]
+        )
 
     csv_bytes = output.getvalue().encode("utf-8")
     return StreamingResponse(
@@ -196,9 +205,14 @@ async def edit_task_view(
     except InvalidTaskDataError as e:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e)) from e
 
-    asyncio.create_task(record_audit(
-        user_id=current_user.id, action="task.edit", target_type="task", target_id=task_id,
-    ))
+    asyncio.create_task(
+        record_audit(
+            user_id=current_user.id,
+            action="task.edit",
+            target_type="task",
+            target_id=task_id,
+        )
+    )
     return _task_to_response(task)
 
 
@@ -216,9 +230,14 @@ async def cancel_task_view(
     except TaskNotCancellableError as e:
         raise HTTPException(status_code=HTTPStatus.CONFLICT, detail=str(e)) from e
 
-    asyncio.create_task(record_audit(
-        user_id=current_user.id, action="task.cancel", target_type="task", target_id=task_id,
-    ))
+    asyncio.create_task(
+        record_audit(
+            user_id=current_user.id,
+            action="task.cancel",
+            target_type="task",
+            target_id=task_id,
+        )
+    )
     return MessageResponse(message="Task cancelled successfully")
 
 
@@ -232,16 +251,25 @@ async def rate_task_view(
     is_admin = current_user.role == UserRole.ADMIN
     try:
         task = await task_service.rate_task(
-            task_id, current_user.id, data.rating, data.comment, is_admin=is_admin,
+            task_id,
+            current_user.id,
+            data.rating,
+            data.comment,
+            is_admin=is_admin,
         )
     except TaskNotFoundError as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e)) from e
     except InvalidTaskDataError as e:
         raise HTTPException(status_code=HTTPStatus.CONFLICT, detail=str(e)) from e
-    asyncio.create_task(record_audit(
-        user_id=current_user.id, action="task.rate", target_type="task", target_id=task_id,
-        details=f"rating={data.rating}",
-    ))
+    asyncio.create_task(
+        record_audit(
+            user_id=current_user.id,
+            action="task.rate",
+            target_type="task",
+            target_id=task_id,
+            details=f"rating={data.rating}",
+        )
+    )
     return _task_to_response(task)
 
 
@@ -267,16 +295,23 @@ async def duplicate_task_view(
     )
     try:
         new_task = await task_service.create_task(
-            new_task_data, current_user.id, is_admin=is_admin,
+            new_task_data,
+            current_user.id,
+            is_admin=is_admin,
         )
     except InvalidTaskDataError as e:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e)) from e
     except (PhoneRateLimitExceededError, UserDailyQuotaExceededError) as e:
         raise HTTPException(status_code=HTTPStatus.TOO_MANY_REQUESTS, detail=str(e)) from e
-    asyncio.create_task(record_audit(
-        user_id=current_user.id, action="task.duplicate", target_type="task", target_id=new_task.id,
-        details=f"source={task_id}",
-    ))
+    asyncio.create_task(
+        record_audit(
+            user_id=current_user.id,
+            action="task.duplicate",
+            target_type="task",
+            target_id=new_task.id,
+            details=f"source={task_id}",
+        )
+    )
     return _task_to_response(new_task)
 
 
@@ -296,9 +331,14 @@ async def retry_task_view(
 
     asyncio.create_task(_run_call_in_background(task_id, current_user.id, is_admin))
     task.status = TaskStatus.IN_PROGRESS
-    asyncio.create_task(record_audit(
-        user_id=current_user.id, action="task.retry", target_type="task", target_id=task_id,
-    ))
+    asyncio.create_task(
+        record_audit(
+            user_id=current_user.id,
+            action="task.retry",
+            target_type="task",
+            target_id=task_id,
+        )
+    )
     return _task_to_response(task)
 
 
@@ -349,7 +389,12 @@ async def execute_task_view(
 
     asyncio.create_task(_run_call_in_background(task_id, current_user.id, is_admin))
     task.status = TaskStatus.IN_PROGRESS
-    asyncio.create_task(record_audit(
-        user_id=current_user.id, action="task.execute", target_type="task", target_id=task_id,
-    ))
+    asyncio.create_task(
+        record_audit(
+            user_id=current_user.id,
+            action="task.execute",
+            target_type="task",
+            target_id=task_id,
+        )
+    )
     return _task_to_response(task)

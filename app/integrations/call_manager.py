@@ -130,11 +130,15 @@ class CallManager:
 
         logger.info("Task %d finished with status: %s", task.id, task.status)
 
-        await self._emit(task_id, "call_ended", {
-            "status": task.status,
-            "summary": task.summary,
-            "error_reason": task.error_reason,
-        })
+        await self._emit(
+            task_id,
+            "call_ended",
+            {
+                "status": task.status,
+                "summary": task.summary,
+                "error_reason": task.error_reason,
+            },
+        )
 
         await self._post_call.process(task)
         return task
@@ -158,19 +162,21 @@ class CallManager:
                     break
                 conv.add_agent_message(NOISE_APOLOGY, call_session.id)
                 await self._emit(task_id, "message", {"speaker": "agent", "text": NOISE_APOLOGY})
-                interlocutor_text = await self._voice.say_and_gather(
-                    call_sid, NOISE_APOLOGY, callback_url, lang
-                )
+                interlocutor_text = await self._voice.say_and_gather(call_sid, NOISE_APOLOGY, callback_url, lang)
                 continue
 
             conv.noise_retries = 0
             detected_intent = await self._llm.detect_intent(interlocutor_text)
             conv.add_interlocutor_message(interlocutor_text, detected_intent, call_session.id)
-            await self._emit(task_id, "message", {
-                "speaker": "interlocutor",
-                "text": interlocutor_text,
-                "intent": detected_intent,
-            })
+            await self._emit(
+                task_id,
+                "message",
+                {
+                    "speaker": "interlocutor",
+                    "text": interlocutor_text,
+                    "intent": detected_intent,
+                },
+            )
 
             if detected_intent == INTENT_REJECTION:
                 conv.add_agent_message(REJECTION_FAREWELL, call_session.id)
@@ -207,8 +213,11 @@ class CallManager:
 
     def _build_system_prompt(self, base_script: str, slot_data: dict[str, str], language: str = "en") -> str:
         from app.core.config import settings
+
         return PromptBuilder.build_system_prompt(
-            base_script, slot_data, language,
+            base_script,
+            slot_data,
+            language,
             require_ai_disclosure=settings.AI_DISCLOSURE_REQUIRED,
         )
 
@@ -222,8 +231,11 @@ class CallManager:
         from app.core.config import settings
 
         if settings.TEST_PHONE_OVERRIDE:
-            logger.info("TEST_PHONE_OVERRIDE active: routing call to %s instead of %s",
-                        settings.TEST_PHONE_OVERRIDE, target_phone)
+            logger.info(
+                "TEST_PHONE_OVERRIDE active: routing call to %s instead of %s",
+                settings.TEST_PHONE_OVERRIDE,
+                target_phone,
+            )
             return settings.TEST_PHONE_OVERRIDE
         return target_phone
 

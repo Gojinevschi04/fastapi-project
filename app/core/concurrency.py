@@ -24,8 +24,7 @@ def get_call_semaphore() -> asyncio.Semaphore:
     global _call_semaphore
     if _call_semaphore is None:
         _call_semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_CALLS)
-        logger.info("Call concurrency semaphore initialized: max=%d",
-                    settings.MAX_CONCURRENT_CALLS)
+        logger.info("Call concurrency semaphore initialized: max=%d", settings.MAX_CONCURRENT_CALLS)
     return _call_semaphore
 
 

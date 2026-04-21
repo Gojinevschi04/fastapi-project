@@ -9,6 +9,7 @@ from app.modules.tasks.exceptions import TaskNotFoundError
 
 # ---- Helper to build a TranscriptResponse ----
 
+
 def _make_transcript(
     task_id: int = 1,
     duration: int | None = 120,
@@ -208,16 +209,26 @@ async def test_download_transcript_empty_lines(authenticated_client: AsyncClient
 async def test_download_transcript_speaker_mapping(authenticated_client: AsyncClient) -> None:
     """Agent speaker should display as 'Agent', interlocutor as 'Caller'."""
     with patch("app.modules.calls.service.CallService.get_transcript") as mock_get:
-        mock_get.return_value = _make_transcript(lines=[
-            LogLineResponse(
-                id=1, session_id=1, timestamp="2026-01-01T00:00:00",
-                speaker="agent", text="Line A", detected_intent=None,
-            ),
-            LogLineResponse(
-                id=2, session_id=1, timestamp="2026-01-01T00:00:05",
-                speaker="interlocutor", text="Line B", detected_intent=None,
-            ),
-        ])
+        mock_get.return_value = _make_transcript(
+            lines=[
+                LogLineResponse(
+                    id=1,
+                    session_id=1,
+                    timestamp="2026-01-01T00:00:00",
+                    speaker="agent",
+                    text="Line A",
+                    detected_intent=None,
+                ),
+                LogLineResponse(
+                    id=2,
+                    session_id=1,
+                    timestamp="2026-01-01T00:00:05",
+                    speaker="interlocutor",
+                    text="Line B",
+                    detected_intent=None,
+                ),
+            ]
+        )
         response = await authenticated_client.get("/tasks/1/transcript/download")
         text = response.text
         assert "Agent: Line A" in text
@@ -295,11 +306,17 @@ async def test_get_call_session_response_shape(authenticated_client: AsyncClient
         response = await authenticated_client.get("/tasks/1/session")
         data = response.json()
         assert set(data.keys()) == {
-            "id", "task_id", "start_time", "duration",
+            "id",
+            "task_id",
+            "start_time",
+            "duration",
             "recording_uri",
-            "input_audio_tokens", "output_audio_tokens",
-            "input_text_tokens", "output_text_tokens",
-            "created_at", "updated_at",
+            "input_audio_tokens",
+            "output_audio_tokens",
+            "input_text_tokens",
+            "output_text_tokens",
+            "created_at",
+            "updated_at",
         }
 
 

@@ -19,7 +19,9 @@ class AuditService:
         self.audit_repository = audit_repository
 
     async def list_entries(
-        self, limit: int = 50, offset: int = 0,
+        self,
+        limit: int = 50,
+        offset: int = 0,
     ) -> tuple[Sequence[AuditLog], int]:
         return await self.audit_repository.get_all_paginated(limit, offset)
 

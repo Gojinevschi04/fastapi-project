@@ -67,7 +67,11 @@ class RealtimeCallManager:
         dial_phone = self._resolve_phone(task.target_phone)
         logger.info(
             "[task=%d] Executing realtime call: target=%s dial=%s template=%s lang=%s",
-            task.id, task.target_phone, dial_phone, template.name, language,
+            task.id,
+            task.target_phone,
+            dial_phone,
+            template.name,
+            language,
         )
 
         await self._emit(task_id, "status_change", {"status": TaskStatus.IN_PROGRESS})
@@ -95,10 +99,14 @@ class RealtimeCallManager:
             task.status = TaskStatus.FAILED
             task.error_reason = str(call_error)
             await self.task_repository.update(task)
-            await self._emit(task_id, "call_ended", {
-                "status": task.status,
-                "error_reason": task.error_reason,
-            })
+            await self._emit(
+                task_id,
+                "call_ended",
+                {
+                    "status": task.status,
+                    "error_reason": task.error_reason,
+                },
+            )
             return task
 
         return task
@@ -129,16 +137,17 @@ class RealtimeCallManager:
     def _compute_ws_url(self) -> str:
         base_url = settings.BASE_URL
         if base_url.startswith("https://"):
-            return "wss://" + base_url[len("https://"):] + "/ws/media-stream"
+            return "wss://" + base_url[len("https://") :] + "/ws/media-stream"
         if base_url.startswith("http://"):
-            return "ws://" + base_url[len("http://"):] + "/ws/media-stream"
+            return "ws://" + base_url[len("http://") :] + "/ws/media-stream"
         return base_url.rstrip("/") + "/ws/media-stream"
 
     def _resolve_phone(self, target_phone: str) -> str:
         if settings.TEST_PHONE_OVERRIDE:
             logger.info(
                 "TEST_PHONE_OVERRIDE active: routing realtime call to %s instead of %s",
-                settings.TEST_PHONE_OVERRIDE, target_phone,
+                settings.TEST_PHONE_OVERRIDE,
+                target_phone,
             )
             return settings.TEST_PHONE_OVERRIDE
         return target_phone

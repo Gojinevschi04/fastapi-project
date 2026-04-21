@@ -17,7 +17,9 @@ async def test_create_template_success(mock_template: DialogTemplate) -> None:
 
     service = TemplateService(template_repository=mock_repo)
     data = TemplateCreate(
-        name="Make Appointment", base_script="Hello, I'd like to help you today.", required_slots=["date"],
+        name="Make Appointment",
+        base_script="Hello, I'd like to help you today.",
+        required_slots=["date"],
     )
     result = await service.create_template(data)
 

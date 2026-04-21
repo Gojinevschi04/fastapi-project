@@ -61,9 +61,7 @@ def _mock_llm() -> MagicMock:
     return llm
 
 
-def _mock_repos(
-    task: Task, template: DialogTemplate
-) -> tuple[MagicMock, MagicMock, MagicMock, MagicMock]:
+def _mock_repos(task: Task, template: DialogTemplate) -> tuple[MagicMock, MagicMock, MagicMock, MagicMock]:
     task_repo = MagicMock(spec=TaskRepository)
     task_repo.get_by_id = AsyncMock(return_value=task)
     task_repo.update = AsyncMock(return_value=task)
@@ -117,9 +115,7 @@ async def test_execute_task_multi_turn(mock_task: Task, mock_template: DialogTem
     llm = _mock_llm()
 
     # say_and_gather: first call returns human speech, second returns empty
-    voice.say_and_gather = AsyncMock(
-        side_effect=["Yes, March 20 please.", ""]
-    )
+    voice.say_and_gather = AsyncMock(side_effect=["Yes, March 20 please.", ""])
     llm.generate_response = AsyncMock(
         side_effect=[
             "Hello, I'd like to book an appointment.",
@@ -144,9 +140,7 @@ async def test_execute_task_rejection_intent(mock_task: Task, mock_template: Dia
     voice = _mock_voice()
     llm = _mock_llm()
 
-    voice.say_and_gather = AsyncMock(
-        side_effect=["No, I'm not interested.", ""]
-    )
+    voice.say_and_gather = AsyncMock(side_effect=["No, I'm not interested.", ""])
     llm.generate_response = AsyncMock(
         side_effect=[
             "Hello, I'd like to book an appointment.",

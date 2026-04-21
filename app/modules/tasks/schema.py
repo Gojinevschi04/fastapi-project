@@ -79,6 +79,7 @@ class TaskBase(BaseModel):
         if v <= datetime.now():
             raise ValueError("Scheduled time must be in the future")
         from app.core.config import settings
+
         if not (settings.CALL_WINDOW_START_HOUR <= v.hour < settings.CALL_WINDOW_END_HOUR):
             raise ValueError(
                 f"Scheduled time must be within call hours "
@@ -135,6 +136,7 @@ class TaskEditRequest(BaseModel):
         if v <= datetime.now():
             raise ValueError("Scheduled time must be in the future")
         from app.core.config import settings
+
         if not (settings.CALL_WINDOW_START_HOUR <= v.hour < settings.CALL_WINDOW_END_HOUR):
             raise ValueError(
                 f"Scheduled time must be within call hours "
@@ -185,6 +187,7 @@ class TaskDuplicateRequest(BaseModel):
         if scheduled_time <= datetime.now():
             raise ValueError("Scheduled time must be in the future")
         from app.core.config import settings
+
         if not (settings.CALL_WINDOW_START_HOUR <= scheduled_time.hour < settings.CALL_WINDOW_END_HOUR):
             raise ValueError(
                 f"Scheduled time must be within call hours "

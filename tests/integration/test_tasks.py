@@ -406,11 +406,11 @@ async def test_create_scheduled_task_triggers_email_notification(authenticated_c
     template = MagicMock()
     template.language = "ro"
 
-    with patch("app.modules.tasks.service.TaskService.create_task",
-               new=AsyncMock(return_value=scheduled_task)), \
-         patch("app.modules.templates.repository.TemplateRepository.get_by_id",
-               new=AsyncMock(return_value=template)), \
-         patch("app.modules.tasks.views.EmailService") as mock_email_service_cls:
+    with (
+        patch("app.modules.tasks.service.TaskService.create_task", new=AsyncMock(return_value=scheduled_task)),
+        patch("app.modules.templates.repository.TemplateRepository.get_by_id", new=AsyncMock(return_value=template)),
+        patch("app.modules.tasks.views.EmailService") as mock_email_service_cls,
+    ):
         mock_email_service = mock_email_service_cls.return_value
         mock_email_service.send_task_scheduled = AsyncMock()
 
@@ -452,8 +452,9 @@ async def test_export_tasks_returns_csv(authenticated_client: AsyncClient) -> No
     task_two.error_reason = "No answer"
     task_two.created_at = datetime(2026, 4, 2, 11, 0)
 
-    with patch("app.modules.tasks.service.TaskService.get_tasks",
-               new=AsyncMock(return_value=([task_one, task_two], 2))):
+    with patch(
+        "app.modules.tasks.service.TaskService.get_tasks", new=AsyncMock(return_value=([task_one, task_two], 2))
+    ):
         response = await authenticated_client.get("/tasks/export")
 
     assert response.status_code == 200
@@ -469,8 +470,9 @@ async def test_export_tasks_returns_csv(authenticated_client: AsyncClient) -> No
 
 @pytest.mark.asyncio
 async def test_export_tasks_with_status_filter(authenticated_client: AsyncClient) -> None:
-    with patch("app.modules.tasks.service.TaskService.get_tasks",
-               new=AsyncMock(return_value=([], 0))) as mock_get_tasks:
+    with patch(
+        "app.modules.tasks.service.TaskService.get_tasks", new=AsyncMock(return_value=([], 0))
+    ) as mock_get_tasks:
         response = await authenticated_client.get("/tasks/export?status=failed")
 
     assert response.status_code == 200
@@ -498,9 +500,10 @@ async def test_retry_task_success(authenticated_client: AsyncClient) -> None:
     retried_task.created_at = "2026-01-01T00:00:00"
     retried_task.updated_at = "2026-01-01T00:00:00"
 
-    with patch("app.modules.tasks.service.TaskService.retry_task",
-               new=AsyncMock(return_value=retried_task)), \
-         patch("app.modules.tasks.views._run_call_in_background", new=AsyncMock()):
+    with (
+        patch("app.modules.tasks.service.TaskService.retry_task", new=AsyncMock(return_value=retried_task)),
+        patch("app.modules.tasks.views._run_call_in_background", new=AsyncMock()),
+    ):
         response = await authenticated_client.post("/tasks/1/retry")
 
     assert response.status_code == 200
@@ -509,8 +512,9 @@ async def test_retry_task_success(authenticated_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_retry_task_not_found(authenticated_client: AsyncClient) -> None:
-    with patch("app.modules.tasks.service.TaskService.retry_task",
-               new=AsyncMock(side_effect=TaskNotFoundError("missing"))):
+    with patch(
+        "app.modules.tasks.service.TaskService.retry_task", new=AsyncMock(side_effect=TaskNotFoundError("missing"))
+    ):
         response = await authenticated_client.post("/tasks/999/retry")
 
     assert response.status_code == 404
@@ -518,8 +522,10 @@ async def test_retry_task_not_found(authenticated_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_retry_task_not_failed(authenticated_client: AsyncClient) -> None:
-    with patch("app.modules.tasks.service.TaskService.retry_task",
-               new=AsyncMock(side_effect=InvalidTaskDataError("Only failed tasks"))):
+    with patch(
+        "app.modules.tasks.service.TaskService.retry_task",
+        new=AsyncMock(side_effect=InvalidTaskDataError("Only failed tasks")),
+    ):
         response = await authenticated_client.post("/tasks/1/retry")
 
     assert response.status_code == 409
@@ -538,9 +544,11 @@ async def test_run_call_in_background_uses_legacy_manager_when_flag_off() -> Non
     mock_manager = MagicMock()
     mock_manager.execute_task = AsyncMock(return_value=None)
 
-    with patch("app.modules.tasks.views.async_session") as mock_session_cls, \
-         patch("app.core.config.settings.USE_REALTIME_API", False), \
-         patch("app.modules.tasks.views.CallManager", return_value=mock_manager):
+    with (
+        patch("app.modules.tasks.views.async_session") as mock_session_cls,
+        patch("app.core.config.settings.USE_REALTIME_API", False),
+        patch("app.modules.tasks.views.CallManager", return_value=mock_manager),
+    ):
         mock_session = AsyncMock()
         mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -557,9 +565,11 @@ async def test_run_call_in_background_uses_realtime_manager_when_flag_on() -> No
     mock_manager = MagicMock()
     mock_manager.execute_task = AsyncMock(return_value=None)
 
-    with patch("app.modules.tasks.views.async_session") as mock_session_cls, \
-         patch("app.core.config.settings.USE_REALTIME_API", True), \
-         patch("app.modules.tasks.views.RealtimeCallManager", return_value=mock_manager):
+    with (
+        patch("app.modules.tasks.views.async_session") as mock_session_cls,
+        patch("app.core.config.settings.USE_REALTIME_API", True),
+        patch("app.modules.tasks.views.RealtimeCallManager", return_value=mock_manager),
+    ):
         mock_session = AsyncMock()
         mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -576,9 +586,11 @@ async def test_run_call_in_background_swallows_exceptions() -> None:
     mock_manager = MagicMock()
     mock_manager.execute_task = AsyncMock(side_effect=RuntimeError("boom"))
 
-    with patch("app.modules.tasks.views.async_session") as mock_session_cls, \
-         patch("app.core.config.settings.USE_REALTIME_API", False), \
-         patch("app.modules.tasks.views.CallManager", return_value=mock_manager):
+    with (
+        patch("app.modules.tasks.views.async_session") as mock_session_cls,
+        patch("app.core.config.settings.USE_REALTIME_API", False),
+        patch("app.modules.tasks.views.CallManager", return_value=mock_manager),
+    ):
         mock_session = AsyncMock()
         mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -603,6 +615,7 @@ async def test_rate_task_success(authenticated_client: AsyncClient) -> None:
     task.summary = "Done"
     task.error_reason = None
     from datetime import datetime
+
     task.created_at = datetime(2026, 1, 1)
     task.updated_at = datetime(2026, 1, 1)
 
@@ -654,6 +667,7 @@ async def test_rate_task_unauthenticated(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_duplicate_task_success(authenticated_client: AsyncClient) -> None:
     from datetime import datetime
+
     source_task = MagicMock(retry_count=0, next_retry_at=None, user_rating=None, user_rating_comment=None)
     source_task.id = 1
     source_task.target_phone = "+37312345678"
@@ -678,10 +692,13 @@ async def test_duplicate_task_success(authenticated_client: AsyncClient) -> None
     new_task.created_at = datetime(2026, 1, 1)
     new_task.updated_at = datetime(2026, 1, 1)
 
-    with patch("app.modules.tasks.service.TaskService.get_task", new=AsyncMock(return_value=source_task)), \
-         patch("app.modules.tasks.service.TaskService.create_task", new=AsyncMock(return_value=new_task)):
+    with (
+        patch("app.modules.tasks.service.TaskService.get_task", new=AsyncMock(return_value=source_task)),
+        patch("app.modules.tasks.service.TaskService.create_task", new=AsyncMock(return_value=new_task)),
+    ):
         response = await authenticated_client.post(
-            "/tasks/1/duplicate", json={"target_phone": "+37399999999"},
+            "/tasks/1/duplicate",
+            json={"target_phone": "+37399999999"},
         )
 
     assert response.status_code == 201
@@ -697,7 +714,8 @@ async def test_duplicate_task_source_not_found(authenticated_client: AsyncClient
         new=AsyncMock(side_effect=TaskNotFoundError("not found")),
     ):
         response = await authenticated_client.post(
-            "/tasks/99999/duplicate", json={"target_phone": "+37399999999"},
+            "/tasks/99999/duplicate",
+            json={"target_phone": "+37399999999"},
         )
 
     assert response.status_code == 404

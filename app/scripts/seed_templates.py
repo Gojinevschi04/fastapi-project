@@ -289,11 +289,7 @@ TEMPLATES = EN_TEMPLATES + RU_TEMPLATES + RO_TEMPLATES
 async def seed() -> None:
     async with AsyncSession(engine) as session:
         for template_data in TEMPLATES:
-            result = await session.exec(
-                select(DialogTemplate).where(
-                    DialogTemplate.name == template_data["name"]
-                )
-            )
+            result = await session.exec(select(DialogTemplate).where(DialogTemplate.name == template_data["name"]))
             existing = result.first()
             if existing:
                 existing.base_script = template_data["base_script"]

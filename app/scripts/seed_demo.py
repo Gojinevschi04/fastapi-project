@@ -121,9 +121,7 @@ async def seed_users(session: AsyncSession) -> dict[str, int]:
     return user_ids
 
 
-def _get_template_id(
-    template_map: dict[str, DialogTemplate], name: str, fallback: DialogTemplate
-) -> int:
+def _get_template_id(template_map: dict[str, DialogTemplate], name: str, fallback: DialogTemplate) -> int:
     return template_map.get(name, fallback).id
 
 
@@ -1446,9 +1444,7 @@ DEMO_TRANSCRIPTS: dict[str, list[dict]] = {
 }
 
 
-async def seed_call_sessions(
-    session: AsyncSession, tasks: list[tuple[int, str]]
-) -> None:
+async def seed_call_sessions(session: AsyncSession, tasks: list[tuple[int, str]]) -> None:
     transcript_keys = list(DEMO_TRANSCRIPTS.keys())
     total_sessions = 0
     total_log_lines = 0
@@ -1457,9 +1453,7 @@ async def seed_call_sessions(
     existing_session_task_ids = set(existing_task_ids_result.all())
 
     result = await session.exec(
-        select(Task.id, Task.status, Task.created_at).where(
-            Task.status.in_([TaskStatus.COMPLETED, TaskStatus.FAILED])
-        )
+        select(Task.id, Task.status, Task.created_at).where(Task.status.in_([TaskStatus.COMPLETED, TaskStatus.FAILED]))
     )
     eligible_tasks = [
         (task_id, status, created_at)

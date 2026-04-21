@@ -65,9 +65,7 @@ async def test_list_audit_log_empty(admin_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_list_audit_log_supports_nullable_fields(admin_client: AsyncClient) -> None:
     with patch("app.modules.audit.service.AuditService.list_entries") as mock_list:
-        entry = _build_mock_entry(
-            entry_id=7, user_id=None, target_id=None, details=None
-        )
+        entry = _build_mock_entry(entry_id=7, user_id=None, target_id=None, details=None)
         mock_list.return_value = ([entry], 1)
 
         response = await admin_client.get("/admin/audit/")

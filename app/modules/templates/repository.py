@@ -29,9 +29,7 @@ class TemplateRepository(Repository):
         )
         return result.all()
 
-    async def get_all_paginated(
-        self, limit: int = 50, offset: int = 0
-    ) -> tuple[Sequence[DialogTemplate], int]:
+    async def get_all_paginated(self, limit: int = 50, offset: int = 0) -> tuple[Sequence[DialogTemplate], int]:
         query = (
             select(DialogTemplate)
             .where(DialogTemplate.is_active.is_(True))

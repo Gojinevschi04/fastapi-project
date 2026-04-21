@@ -288,13 +288,15 @@ async def test_delete_user_cascades_tasks_sessions_and_log_lines(mock_user: User
     mock_tasks_result.all.return_value = [mock_task]
 
     mock_session = AsyncMock()
-    mock_session.exec = AsyncMock(side_effect=[
-        mock_task_ids_result,
-        mock_session_ids_result,
-        mock_log_lines_result,
-        mock_call_sessions_result,
-        mock_tasks_result,
-    ])
+    mock_session.exec = AsyncMock(
+        side_effect=[
+            mock_task_ids_result,
+            mock_session_ids_result,
+            mock_log_lines_result,
+            mock_call_sessions_result,
+            mock_tasks_result,
+        ]
+    )
     mock_session.delete = AsyncMock()
     mock_session.commit = AsyncMock()
 
@@ -325,11 +327,13 @@ async def test_delete_user_with_tasks_but_no_sessions(mock_user: User) -> None:
     mock_tasks_result.all.return_value = [mock_task]
 
     mock_session = AsyncMock()
-    mock_session.exec = AsyncMock(side_effect=[
-        mock_task_ids_result,
-        mock_empty_sessions_result,
-        mock_tasks_result,
-    ])
+    mock_session.exec = AsyncMock(
+        side_effect=[
+            mock_task_ids_result,
+            mock_empty_sessions_result,
+            mock_tasks_result,
+        ]
+    )
     mock_session.delete = AsyncMock()
     mock_session.commit = AsyncMock()
 
@@ -370,13 +374,15 @@ async def test_get_extended_stats_assembles_all_four_sections() -> None:
     ]
 
     mock_session = AsyncMock()
-    mock_session.exec = AsyncMock(side_effect=[
-        template_result,
-        duration_result,
-        tasks_per_day_result,
-        users_per_month_result,
-        success_rate_result,
-    ])
+    mock_session.exec = AsyncMock(
+        side_effect=[
+            template_result,
+            duration_result,
+            tasks_per_day_result,
+            users_per_month_result,
+            success_rate_result,
+        ]
+    )
 
     mock_user_repo = MagicMock(spec=UserRepository)
     mock_user_repo._session = mock_session
@@ -409,13 +415,15 @@ async def test_get_extended_stats_average_duration_is_zero_when_no_calls() -> No
     duration_result.one.return_value = None
 
     mock_session = AsyncMock()
-    mock_session.exec = AsyncMock(side_effect=[
-        empty_result,
-        duration_result,
-        empty_result,
-        empty_result,
-        empty_result,
-    ])
+    mock_session.exec = AsyncMock(
+        side_effect=[
+            empty_result,
+            duration_result,
+            empty_result,
+            empty_result,
+            empty_result,
+        ]
+    )
 
     mock_user_repo = MagicMock(spec=UserRepository)
     mock_user_repo._session = mock_session

@@ -453,8 +453,10 @@ async def test_retry_task_success(mock_task: Task) -> None:
 
     service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
 
-    with patch("app.modules.calls.repository.CallSessionRepository") as mock_session_repo_cls, \
-         patch("app.modules.calls.repository.LogLineRepository") as mock_line_repo_cls:
+    with (
+        patch("app.modules.calls.repository.CallSessionRepository") as mock_session_repo_cls,
+        patch("app.modules.calls.repository.LogLineRepository") as mock_line_repo_cls,
+    ):
         mock_session_repo = mock_session_repo_cls.return_value
         mock_session_repo.get_by_task_id = AsyncMock(return_value=None)
         mock_line_repo_cls.return_value = MagicMock()
@@ -505,8 +507,10 @@ async def test_retry_task_cleans_up_existing_call_session(mock_task: Task) -> No
 
     service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
 
-    with patch("app.modules.calls.repository.CallSessionRepository") as mock_session_repo_cls, \
-         patch("app.modules.calls.repository.LogLineRepository") as mock_line_repo_cls:
+    with (
+        patch("app.modules.calls.repository.CallSessionRepository") as mock_session_repo_cls,
+        patch("app.modules.calls.repository.LogLineRepository") as mock_line_repo_cls,
+    ):
         mock_session_repo = mock_session_repo_cls.return_value
         mock_session_repo.get_by_task_id = AsyncMock(return_value=mock_existing_session)
         mock_session_repo.delete = AsyncMock()
@@ -531,8 +535,10 @@ async def test_retry_task_admin_uses_any_user_lookup(mock_task: Task) -> None:
 
     service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
 
-    with patch("app.modules.calls.repository.CallSessionRepository") as mock_session_repo_cls, \
-         patch("app.modules.calls.repository.LogLineRepository"):
+    with (
+        patch("app.modules.calls.repository.CallSessionRepository") as mock_session_repo_cls,
+        patch("app.modules.calls.repository.LogLineRepository"),
+    ):
         mock_session_repo = mock_session_repo_cls.return_value
         mock_session_repo.get_by_task_id = AsyncMock(return_value=None)
 
@@ -558,8 +564,10 @@ async def test_create_task_rejected_when_phone_rate_limit_exceeded(mock_template
         slot_data={"preferred_date": "2026-03-20", "preferred_time": "10:00"},
     )
 
-    with patch("app.core.config.settings.MAX_CALLS_PER_PHONE_PER_DAY", 3), \
-         pytest.raises(PhoneRateLimitExceededError, match="3 calls"):
+    with (
+        patch("app.core.config.settings.MAX_CALLS_PER_PHONE_PER_DAY", 3),
+        pytest.raises(PhoneRateLimitExceededError, match="3 calls"),
+    ):
         await service.create_task(data, user_id=1)
 
 

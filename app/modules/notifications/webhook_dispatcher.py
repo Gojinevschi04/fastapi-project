@@ -37,7 +37,9 @@ async def send_task_webhook(webhook_url: str, task: Task) -> None:
             response = await client.post(webhook_url, json=payload)
             logger.info(
                 "Webhook delivered to %s: status=%d task=%d",
-                webhook_url, response.status_code, task.id,
+                webhook_url,
+                response.status_code,
+                task.id,
             )
     except Exception:
         logger.exception("Webhook delivery failed for task %d to %s", task.id, webhook_url)

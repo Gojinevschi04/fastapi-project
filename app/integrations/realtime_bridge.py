@@ -148,8 +148,7 @@ class RealtimeBridge:
         except websockets.exceptions.ConnectionClosed as websocket_closed_error:
             close_code = getattr(websocket_closed_error, "code", "?")
             close_reason = getattr(websocket_closed_error, "reason", "?")
-            logger.info("[task=%d] OpenAI WS closed: code=%s reason=%s",
-                        self.task_id, close_code, close_reason)
+            logger.info("[task=%d] OpenAI WS closed: code=%s reason=%s", self.task_id, close_code, close_reason)
             if not session_initialized:
                 self.init_failed = True
         except Exception:
@@ -163,10 +162,15 @@ class RealtimeBridge:
                 "[task=%d] Bridge finished. Twilio chunks in=%d, OpenAI audio out=%d, "
                 "transcript lines=%d, outcome=%s, tokens: "
                 "in(audio=%d text=%d) out(audio=%d text=%d)",
-                self.task_id, self._twilio_chunks_received, self._openai_chunks_sent,
-                len(self.transcript_buffer), self.outcome,
-                self.input_audio_tokens, self.input_text_tokens,
-                self.output_audio_tokens, self.output_text_tokens,
+                self.task_id,
+                self._twilio_chunks_received,
+                self._openai_chunks_sent,
+                len(self.transcript_buffer),
+                self.outcome,
+                self.input_audio_tokens,
+                self.input_text_tokens,
+                self.output_audio_tokens,
+                self.output_text_tokens,
             )
 
     async def _init_openai_session(self) -> None:
@@ -213,8 +217,11 @@ class RealtimeBridge:
         await self.openai_ws.send(json.dumps(session_update))
         logger.info(
             "[task=%d] OpenAI session.update sent: model=%s voice=%s vad=%s lang=%s",
-            self.task_id, settings.OPENAI_REALTIME_MODEL, settings.OPENAI_REALTIME_VOICE,
-            turn_detection.get("type"), self.language,
+            self.task_id,
+            settings.OPENAI_REALTIME_MODEL,
+            settings.OPENAI_REALTIME_VOICE,
+            turn_detection.get("type"),
+            self.language,
         )
 
         await self._trigger_initial_response()
@@ -242,7 +249,9 @@ class RealtimeBridge:
                     self.stream_start_time = datetime.now()
                     logger.info(
                         "[task=%d] Media stream started: streamSid=%s callSid=%s",
-                        self.task_id, self.stream_sid, self.call_sid,
+                        self.task_id,
+                        self.stream_sid,
+                        self.call_sid,
                     )
                     await self._emit("call_answered")
 
@@ -250,14 +259,19 @@ class RealtimeBridge:
                     self.latest_media_timestamp = int(message["media"].get("timestamp", 0))
                     audio_payload = message["media"]["payload"]
                     if self.openai_ws and self.openai_ws.state == websockets.protocol.State.OPEN:
-                        await self.openai_ws.send(json.dumps({
-                            "type": "input_audio_buffer.append",
-                            "audio": audio_payload,
-                        }))
+                        await self.openai_ws.send(
+                            json.dumps(
+                                {
+                                    "type": "input_audio_buffer.append",
+                                    "audio": audio_payload,
+                                }
+                            )
+                        )
                     self._twilio_chunks_received += 1
                     if self._twilio_chunks_received in AUDIO_CHUNK_LOG_THRESHOLDS:
-                        logger.info("[task=%d] Twilio audio chunks received: %d",
-                                    self.task_id, self._twilio_chunks_received)
+                        logger.info(
+                            "[task=%d] Twilio audio chunks received: %d", self.task_id, self._twilio_chunks_received
+                        )
 
                 elif event_name == "mark":
                     if self.mark_queue:
@@ -361,15 +375,16 @@ class RealtimeBridge:
         if not payload:
             return
 
-        await self.twilio_ws.send_json({
-            "event": "media",
-            "streamSid": self.stream_sid,
-            "media": {"payload": payload},
-        })
+        await self.twilio_ws.send_json(
+            {
+                "event": "media",
+                "streamSid": self.stream_sid,
+                "media": {"payload": payload},
+            }
+        )
         self._openai_chunks_sent += 1
         if self._openai_chunks_sent in AUDIO_CHUNK_LOG_THRESHOLDS:
-            logger.info("[task=%d] OpenAI audio chunks sent to Twilio: %d",
-                        self.task_id, self._openai_chunks_sent)
+            logger.info("[task=%d] OpenAI audio chunks sent to Twilio: %d", self.task_id, self._openai_chunks_sent)
 
         if self.response_start_timestamp_twilio is None:
             self.response_start_timestamp_twilio = self.latest_media_timestamp
@@ -379,11 +394,13 @@ class RealtimeBridge:
 
         self._mark_counter += 1
         mark_name = f"resp-{self._mark_counter}"
-        await self.twilio_ws.send_json({
-            "event": "mark",
-            "streamSid": self.stream_sid,
-            "mark": {"name": mark_name},
-        })
+        await self.twilio_ws.send_json(
+            {
+                "event": "mark",
+                "streamSid": self.stream_sid,
+                "mark": {"name": mark_name},
+            }
+        )
         self.mark_queue.append(mark_name)
 
     async def _handle_barge_in(self) -> None:
@@ -395,12 +412,16 @@ class RealtimeBridge:
             elapsed_ms = 0
 
         try:
-            await self.openai_ws.send(json.dumps({
-                "type": "conversation.item.truncate",
-                "item_id": self.last_assistant_item_id,
-                "content_index": 0,
-                "audio_end_ms": elapsed_ms,
-            }))
+            await self.openai_ws.send(
+                json.dumps(
+                    {
+                        "type": "conversation.item.truncate",
+                        "item_id": self.last_assistant_item_id,
+                        "content_index": 0,
+                        "audio_end_ms": elapsed_ms,
+                    }
+                )
+            )
         except Exception:
             logger.exception("Failed to truncate on barge-in for task %d", self.task_id)
 
@@ -428,27 +449,35 @@ class RealtimeBridge:
             }
             logger.info("[task=%d] Outcome reported via tool: %s", self.task_id, self.outcome)
 
-            await self.openai_ws.send(json.dumps({
-                "type": "conversation.item.create",
-                "item": {
-                    "type": "function_call_output",
-                    "call_id": call_id,
-                    "output": json.dumps({"acknowledged": True}),
-                },
-            }))
+            await self.openai_ws.send(
+                json.dumps(
+                    {
+                        "type": "conversation.item.create",
+                        "item": {
+                            "type": "function_call_output",
+                            "call_id": call_id,
+                            "output": json.dumps({"acknowledged": True}),
+                        },
+                    }
+                )
+            )
             self._hangup_pending = True
             lang_name = LANG_DISPLAY_NAMES.get(self.language, "English")
-            await self.openai_ws.send(json.dumps({
-                "type": "response.create",
-                "response": {
-                    "instructions": (
-                        f"Speak ONLY in {lang_name}. Say a brief, courteous thank-you and goodbye "
-                        f"(one short sentence, e.g. 'Mulțumesc, o zi bună!' / 'Thank you, have a great day!'). "
-                        "Do NOT offer further help, do NOT say 'I'm here to help' or 'let me know if you need "
-                        "anything' — you were the caller, not a support agent. End the call."
-                    ),
-                },
-            }))
+            await self.openai_ws.send(
+                json.dumps(
+                    {
+                        "type": "response.create",
+                        "response": {
+                            "instructions": (
+                                f"Speak ONLY in {lang_name}. Say a brief, courteous thank-you and goodbye "
+                                f"(one short sentence, e.g. 'Mulțumesc, o zi bună!' / 'Thank you, have a great day!'). "
+                                "Do NOT offer further help, do NOT say 'I'm here to help' or 'let me know if you need "
+                                "anything' — you were the caller, not a support agent. End the call."
+                            ),
+                        },
+                    }
+                )
+            )
             logger.info("[task=%d] Triggered farewell response; hangup queued", self.task_id)
 
     def _start_idle_timer(self, timeout_seconds: float = IDLE_TIMEOUT_SECONDS) -> None:
@@ -470,42 +499,50 @@ class RealtimeBridge:
             return
 
         self._silence_nudges += 1
-        logger.info("[task=%d] Idle for %ss — nudge #%d",
-                    self.task_id, timeout_seconds, self._silence_nudges)
+        logger.info("[task=%d] Idle for %ss — nudge #%d", self.task_id, timeout_seconds, self._silence_nudges)
 
         lang_name = LANG_DISPLAY_NAMES.get(self.language, "English")
         nudge_phrase = NUDGE_PHRASES.get(self.language, NUDGE_PHRASES["en"])
         retry_later_phrase = RETRY_LATER_PHRASES.get(self.language, RETRY_LATER_PHRASES["en"])
 
         if self._silence_nudges >= MAX_SILENCE_NUDGES:
-            logger.info("[task=%d] %d silent nudges — forcing failed outcome + hangup",
-                        self.task_id, MAX_SILENCE_NUDGES)
+            logger.info(
+                "[task=%d] %d silent nudges — forcing failed outcome + hangup", self.task_id, MAX_SILENCE_NUDGES
+            )
             self.outcome = {
                 "status": "failed",
                 "reason": "No response from the interlocutor after multiple attempts.",
             }
             self._hangup_pending = True
-            await self.openai_ws.send(json.dumps({
-                "type": "response.create",
-                "response": {
-                    "instructions": (
-                        f"Speak ONLY in {lang_name}. Say exactly this (translated naturally "
-                        f"into {lang_name} if needed): \"{retry_later_phrase}\""
-                    ),
-                },
-            }))
+            await self.openai_ws.send(
+                json.dumps(
+                    {
+                        "type": "response.create",
+                        "response": {
+                            "instructions": (
+                                f"Speak ONLY in {lang_name}. Say exactly this (translated naturally "
+                                f'into {lang_name} if needed): "{retry_later_phrase}"'
+                            ),
+                        },
+                    }
+                )
+            )
             return
 
-        await self.openai_ws.send(json.dumps({
-            "type": "response.create",
-            "response": {
-                "instructions": (
-                    f"Speak ONLY in {lang_name}. The other person hasn't replied. "
-                    f"Say exactly this in {lang_name}: \"{nudge_phrase}\" "
-                    "Do NOT repeat your original question or introduction."
-                ),
-            },
-        }))
+        await self.openai_ws.send(
+            json.dumps(
+                {
+                    "type": "response.create",
+                    "response": {
+                        "instructions": (
+                            f"Speak ONLY in {lang_name}. The other person hasn't replied. "
+                            f'Say exactly this in {lang_name}: "{nudge_phrase}" '
+                            "Do NOT repeat your original question or introduction."
+                        ),
+                    },
+                }
+            )
+        )
 
     def _start_duration_timer(self) -> None:
         self._cancel_duration_timer()
@@ -534,7 +571,8 @@ class RealtimeBridge:
 
         logger.warning(
             "[task=%d] Max call duration %ds reached — forcing graceful hangup",
-            self.task_id, settings.MAX_CALL_DURATION_SECONDS,
+            self.task_id,
+            settings.MAX_CALL_DURATION_SECONDS,
         )
         self._cancel_idle_timer()
         self.outcome = {
@@ -545,17 +583,21 @@ class RealtimeBridge:
 
         lang_name = LANG_DISPLAY_NAMES.get(self.language, "English")
         farewell = MAX_DURATION_FAREWELL_PHRASES.get(
-            self.language, MAX_DURATION_FAREWELL_PHRASES["en"],
+            self.language,
+            MAX_DURATION_FAREWELL_PHRASES["en"],
         )
-        await self.openai_ws.send(json.dumps({
-            "type": "response.create",
-            "response": {
-                "instructions": (
-                    f"Speak ONLY in {lang_name}. Say exactly this (translate naturally if needed): "
-                    f"\"{farewell}\""
-                ),
-            },
-        }))
+        await self.openai_ws.send(
+            json.dumps(
+                {
+                    "type": "response.create",
+                    "response": {
+                        "instructions": (
+                            f'Speak ONLY in {lang_name}. Say exactly this (translate naturally if needed): "{farewell}"'
+                        ),
+                    },
+                }
+            )
+        )
 
     async def _hangup_after_drain(self) -> None:
         """Wait for Twilio's audio buffer to drain (marks to clear), then hang up the call."""
@@ -591,11 +633,13 @@ class RealtimeBridge:
         self.output_text_tokens += int(output_details.get("text_tokens") or 0)
 
     def _record_transcript(self, speaker: Speaker, text: str) -> None:
-        self.transcript_buffer.append({
-            "speaker": speaker,
-            "text": text,
-            "timestamp": datetime.now(),
-        })
+        self.transcript_buffer.append(
+            {
+                "speaker": speaker,
+                "text": text,
+                "timestamp": datetime.now(),
+            }
+        )
 
     async def _emit(self, event: str, data: dict[str, Any] | None = None) -> None:
         if call_broadcaster.has_listeners(self.task_id):

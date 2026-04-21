@@ -140,3 +140,47 @@ async def test_download_file_unauthenticated(client: AsyncClient) -> None:
 async def test_delete_file_unauthenticated(client: AsyncClient) -> None:
     response = await client.delete("/files/1")
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_upload_file_rejects_oversized(authenticated_client: AsyncClient) -> None:
+    """Regression: upload > MAX_UPLOAD_SIZE_BYTES returns 413."""
+    from app.core.constants import MAX_UPLOAD_SIZE_BYTES
+
+    oversized = b"x" * (MAX_UPLOAD_SIZE_BYTES + 1)
+    response = await authenticated_client.post(
+        "/files/upload",
+        files={"file": ("big.pdf", oversized, "application/pdf")},
+    )
+    assert response.status_code == 413
+
+
+@pytest.mark.asyncio
+async def test_upload_file_accepts_at_limit(authenticated_client: AsyncClient) -> None:
+    """Boundary: upload exactly at MAX_UPLOAD_SIZE_BYTES is accepted."""
+    from unittest.mock import AsyncMock, patch
+
+    from app.core.constants import MAX_UPLOAD_SIZE_BYTES
+    from app.modules.files.models import File
+    from app.modules.files.schema import FileType
+
+    at_limit = b"x" * MAX_UPLOAD_SIZE_BYTES
+    saved_file = File(
+        id=1,
+        filename="f.pdf",
+        original_filename="big.pdf",
+        file_path="/tmp/f.pdf",
+        file_size=MAX_UPLOAD_SIZE_BYTES,
+        file_type=FileType.PDF,
+        user_id=1,
+        content_hash="h",
+    )
+    with patch(
+        "app.modules.files.service.FileService.save_file",
+        new=AsyncMock(return_value=saved_file),
+    ):
+        response = await authenticated_client.post(
+            "/files/upload",
+            files={"file": ("big.pdf", at_limit, "application/pdf")},
+        )
+    assert response.status_code == 200

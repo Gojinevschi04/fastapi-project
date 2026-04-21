@@ -64,9 +64,7 @@ class AdminService:
         tasks_per_template = [{"name": name, "count": count} for name, count in result.all()]
 
         # Average call duration
-        result = await session.exec(
-            select(func.avg(CallSession.duration)).where(CallSession.duration.is_not(None))
-        )
+        result = await session.exec(select(func.avg(CallSession.duration)).where(CallSession.duration.is_not(None)))
         average_duration = round(result.one() or 0)
 
         # Tasks per day (last 30 days)

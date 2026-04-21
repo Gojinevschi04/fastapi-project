@@ -5,8 +5,10 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_transcribe() -> None:
-    with patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai, \
-         patch("app.integrations.openai_adapter.settings") as mock_settings:
+    with (
+        patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai,
+        patch("app.integrations.openai_adapter.settings") as mock_settings,
+    ):
         mock_settings.OPENAI_API_KEY = "test-key"
         mock_settings.OPENAI_MODEL = "gpt-4o"
         mock_settings.OPENAI_TTS_MODEL = "tts-1"
@@ -31,8 +33,10 @@ async def test_transcribe() -> None:
 
 @pytest.mark.asyncio
 async def test_generate_response() -> None:
-    with patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai, \
-         patch("app.integrations.openai_adapter.settings") as mock_settings:
+    with (
+        patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai,
+        patch("app.integrations.openai_adapter.settings") as mock_settings,
+    ):
         mock_settings.OPENAI_API_KEY = "test-key"
         mock_settings.OPENAI_MODEL = "gpt-4o"
         mock_settings.OPENAI_TTS_MODEL = "tts-1"
@@ -61,8 +65,10 @@ async def test_generate_response() -> None:
 
 @pytest.mark.asyncio
 async def test_synthesize() -> None:
-    with patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai, \
-         patch("app.integrations.openai_adapter.settings") as mock_settings:
+    with (
+        patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai,
+        patch("app.integrations.openai_adapter.settings") as mock_settings,
+    ):
         mock_settings.OPENAI_API_KEY = "test-key"
         mock_settings.OPENAI_MODEL = "gpt-4o"
         mock_settings.OPENAI_TTS_MODEL = "tts-1"
@@ -87,8 +93,10 @@ async def test_synthesize() -> None:
 
 @pytest.mark.asyncio
 async def test_detect_intent() -> None:
-    with patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai, \
-         patch("app.integrations.openai_adapter.settings") as mock_settings:
+    with (
+        patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai,
+        patch("app.integrations.openai_adapter.settings") as mock_settings,
+    ):
         mock_settings.OPENAI_API_KEY = "test-key"
         mock_settings.OPENAI_MODEL = "gpt-4o"
         mock_settings.OPENAI_TTS_MODEL = "tts-1"
@@ -115,8 +123,10 @@ async def test_detect_intent() -> None:
 
 @pytest.mark.asyncio
 async def test_detect_intent_empty_text() -> None:
-    with patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai, \
-         patch("app.integrations.openai_adapter.settings") as mock_settings:
+    with (
+        patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai,
+        patch("app.integrations.openai_adapter.settings") as mock_settings,
+    ):
         mock_settings.OPENAI_API_KEY = "test-key"
         mock_settings.OPENAI_MODEL = "gpt-4o"
         mock_settings.OPENAI_TTS_MODEL = "tts-1"
@@ -137,8 +147,10 @@ async def test_detect_intent_empty_text() -> None:
 
 @pytest.mark.asyncio
 async def test_detect_intent_api_failure() -> None:
-    with patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai, \
-         patch("app.integrations.openai_adapter.settings") as mock_settings:
+    with (
+        patch("app.integrations.openai_adapter.AsyncOpenAI") as mock_openai,
+        patch("app.integrations.openai_adapter.settings") as mock_settings,
+    ):
         mock_settings.OPENAI_API_KEY = "test-key"
         mock_settings.OPENAI_MODEL = "gpt-4o"
         mock_settings.OPENAI_TTS_MODEL = "tts-1"

@@ -145,9 +145,7 @@ class TwilioAdapter(IVoiceProvider):
         """
         # Interface compatibility — real work done by say_and_gather()
 
-    async def say_and_gather(
-        self, call_sid: str, text: str, callback_url: str, language: str = "en"
-    ) -> str:
+    async def say_and_gather(self, call_sid: str, text: str, callback_url: str, language: str = "en") -> str:
         """Speak text to the callee using Twilio TTS and wait for their response.
 
         Uses Twilio's <Say> + <Gather> TwiML, then waits for the webhook to

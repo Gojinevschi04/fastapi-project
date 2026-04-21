@@ -80,9 +80,7 @@ async def test_classify_outcome_returns_valid_result() -> None:
 
     with patch("app.modules.webhooks.realtime_ws.OpenAIAdapter") as mock_adapter_cls:
         mock_adapter = mock_adapter_cls.return_value
-        mock_adapter.generate_response = AsyncMock(
-            return_value='{"status": "achieved", "reason": "Info obtained."}'
-        )
+        mock_adapter.generate_response = AsyncMock(return_value='{"status": "achieved", "reason": "Info obtained."}')
         result = await _classify_outcome_from_transcript(transcript, "en", "Get info.")
 
     assert result == {"status": "achieved", "reason": "Info obtained."}
@@ -109,9 +107,7 @@ async def test_classify_outcome_rejects_invalid_status() -> None:
 
     with patch("app.modules.webhooks.realtime_ws.OpenAIAdapter") as mock_adapter_cls:
         mock_adapter = mock_adapter_cls.return_value
-        mock_adapter.generate_response = AsyncMock(
-            return_value='{"status": "weird_status", "reason": "..."}'
-        )
+        mock_adapter.generate_response = AsyncMock(return_value='{"status": "weird_status", "reason": "..."}')
         result = await _classify_outcome_from_transcript(transcript, "en", "Get info.")
 
     assert result is None
@@ -228,8 +224,7 @@ def _make_bridge_with_transcript(
     return bridge
 
 
-def _build_finalize_mocks(task: Task | None, template: DialogTemplate | None,
-                          call_session: CallSession | None) -> dict:
+def _build_finalize_mocks(task: Task | None, template: DialogTemplate | None, call_session: CallSession | None) -> dict:
     task_repo = MagicMock()
     task_repo.get_by_id_any_user = AsyncMock(return_value=task)
     task_repo.update = AsyncMock()
@@ -260,9 +255,7 @@ def _patch_finalize_dependencies(mocks: dict) -> list:
     mock_session = AsyncMock()
 
     session_ctx = patch("app.modules.webhooks.realtime_ws.async_session")
-    task_repo_ctx = patch(
-        "app.modules.webhooks.realtime_ws.TaskRepository", return_value=mocks["task_repo"]
-    )
+    task_repo_ctx = patch("app.modules.webhooks.realtime_ws.TaskRepository", return_value=mocks["task_repo"])
     template_repo_ctx = patch(
         "app.modules.webhooks.realtime_ws.TemplateRepository", return_value=mocks["template_repo"]
     )
@@ -274,9 +267,7 @@ def _patch_finalize_dependencies(mocks: dict) -> list:
         "app.modules.webhooks.realtime_ws.LogLineRepository",
         return_value=mocks["log_line_repo"],
     )
-    user_repo_ctx = patch(
-        "app.modules.webhooks.realtime_ws.UserRepository", return_value=mocks["user_repo"]
-    )
+    user_repo_ctx = patch("app.modules.webhooks.realtime_ws.UserRepository", return_value=mocks["user_repo"])
     post_call_ctx = patch("app.modules.webhooks.realtime_ws.PostCallProcessor")
     twilio_ctx = patch("app.modules.webhooks.realtime_ws.TwilioAdapter")
 
@@ -295,8 +286,14 @@ def _patch_finalize_dependencies(mocks: dict) -> list:
     twilio_mock.return_value.get_recording_url = AsyncMock(return_value=None)
 
     return [
-        session_ctx, task_repo_ctx, template_repo_ctx, call_repo_ctx,
-        log_repo_ctx, user_repo_ctx, post_call_ctx, twilio_ctx,
+        session_ctx,
+        task_repo_ctx,
+        template_repo_ctx,
+        call_repo_ctx,
+        log_repo_ctx,
+        user_repo_ctx,
+        post_call_ctx,
+        twilio_ctx,
     ]
 
 
@@ -308,11 +305,20 @@ def _stop_patches(contexts: list) -> None:
 @pytest.mark.asyncio
 async def test_finalize_call_with_tool_outcome_sets_completed_status() -> None:
     task = Task(
-        id=42, target_phone="+37360000001", status=TaskStatus.IN_PROGRESS,
-        template_id=5, user_id=7, slot_data={},
+        id=42,
+        target_phone="+37360000001",
+        status=TaskStatus.IN_PROGRESS,
+        template_id=5,
+        user_id=7,
+        slot_data={},
     )
     template = DialogTemplate(
-        id=5, name="T", base_script="Call.", required_slots=[], language="en", is_active=True,
+        id=5,
+        name="T",
+        base_script="Call.",
+        required_slots=[],
+        language="en",
+        is_active=True,
     )
     call_session = CallSession(id=1, task_id=42, start_time=datetime.now())
     mocks = _build_finalize_mocks(task, template, call_session)
@@ -320,8 +326,7 @@ async def test_finalize_call_with_tool_outcome_sets_completed_status() -> None:
 
     contexts = _patch_finalize_dependencies(mocks)
     try:
-        with patch("app.modules.webhooks.realtime_ws._generate_llm_summary",
-                   AsyncMock(return_value="summary")):
+        with patch("app.modules.webhooks.realtime_ws._generate_llm_summary", AsyncMock(return_value="summary")):
             await _finalize_call(bridge)
     finally:
         _stop_patches(contexts)
@@ -334,11 +339,20 @@ async def test_finalize_call_with_tool_outcome_sets_completed_status() -> None:
 @pytest.mark.asyncio
 async def test_finalize_call_with_tool_outcome_failed_sets_error_reason() -> None:
     task = Task(
-        id=42, target_phone="+37360000001", status=TaskStatus.IN_PROGRESS,
-        template_id=5, user_id=7, slot_data={},
+        id=42,
+        target_phone="+37360000001",
+        status=TaskStatus.IN_PROGRESS,
+        template_id=5,
+        user_id=7,
+        slot_data={},
     )
     template = DialogTemplate(
-        id=5, name="T", base_script="x", required_slots=[], language="en", is_active=True,
+        id=5,
+        name="T",
+        base_script="x",
+        required_slots=[],
+        language="en",
+        is_active=True,
     )
     call_session = CallSession(id=1, task_id=42, start_time=datetime.now())
     mocks = _build_finalize_mocks(task, template, call_session)
@@ -348,8 +362,7 @@ async def test_finalize_call_with_tool_outcome_failed_sets_error_reason() -> Non
 
     contexts = _patch_finalize_dependencies(mocks)
     try:
-        with patch("app.modules.webhooks.realtime_ws._generate_llm_summary",
-                   AsyncMock(return_value="")):
+        with patch("app.modules.webhooks.realtime_ws._generate_llm_summary", AsyncMock(return_value="")):
             await _finalize_call(bridge)
     finally:
         _stop_patches(contexts)
@@ -361,11 +374,20 @@ async def test_finalize_call_with_tool_outcome_failed_sets_error_reason() -> Non
 @pytest.mark.asyncio
 async def test_finalize_call_no_outcome_classifies_from_transcript() -> None:
     task = Task(
-        id=42, target_phone="+37360000001", status=TaskStatus.IN_PROGRESS,
-        template_id=5, user_id=7, slot_data={},
+        id=42,
+        target_phone="+37360000001",
+        status=TaskStatus.IN_PROGRESS,
+        template_id=5,
+        user_id=7,
+        slot_data={},
     )
     template = DialogTemplate(
-        id=5, name="T", base_script="Get info.", required_slots=[], language="en", is_active=True,
+        id=5,
+        name="T",
+        base_script="Get info.",
+        required_slots=[],
+        language="en",
+        is_active=True,
     )
     call_session = CallSession(id=1, task_id=42, start_time=datetime.now())
     mocks = _build_finalize_mocks(task, template, call_session)
@@ -373,12 +395,15 @@ async def test_finalize_call_no_outcome_classifies_from_transcript() -> None:
 
     contexts = _patch_finalize_dependencies(mocks)
     try:
-        with patch(
-            "app.modules.webhooks.realtime_ws._classify_outcome_from_transcript",
-            AsyncMock(return_value={"status": "achieved", "reason": "Inferred."}),
-        ), patch(
-            "app.modules.webhooks.realtime_ws._generate_llm_summary",
-            AsyncMock(return_value="summary"),
+        with (
+            patch(
+                "app.modules.webhooks.realtime_ws._classify_outcome_from_transcript",
+                AsyncMock(return_value={"status": "achieved", "reason": "Inferred."}),
+            ),
+            patch(
+                "app.modules.webhooks.realtime_ws._generate_llm_summary",
+                AsyncMock(return_value="summary"),
+            ),
         ):
             await _finalize_call(bridge)
     finally:
@@ -390,11 +415,20 @@ async def test_finalize_call_no_outcome_classifies_from_transcript() -> None:
 @pytest.mark.asyncio
 async def test_finalize_call_no_outcome_and_classification_fails_marks_failed() -> None:
     task = Task(
-        id=42, target_phone="+37360000001", status=TaskStatus.IN_PROGRESS,
-        template_id=5, user_id=7, slot_data={},
+        id=42,
+        target_phone="+37360000001",
+        status=TaskStatus.IN_PROGRESS,
+        template_id=5,
+        user_id=7,
+        slot_data={},
     )
     template = DialogTemplate(
-        id=5, name="T", base_script="x", required_slots=[], language="en", is_active=True,
+        id=5,
+        name="T",
+        base_script="x",
+        required_slots=[],
+        language="en",
+        is_active=True,
     )
     call_session = CallSession(id=1, task_id=42, start_time=datetime.now())
     mocks = _build_finalize_mocks(task, template, call_session)
@@ -402,12 +436,15 @@ async def test_finalize_call_no_outcome_and_classification_fails_marks_failed() 
 
     contexts = _patch_finalize_dependencies(mocks)
     try:
-        with patch(
-            "app.modules.webhooks.realtime_ws._classify_outcome_from_transcript",
-            AsyncMock(return_value=None),
-        ), patch(
-            "app.modules.webhooks.realtime_ws._generate_llm_summary",
-            AsyncMock(return_value=""),
+        with (
+            patch(
+                "app.modules.webhooks.realtime_ws._classify_outcome_from_transcript",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.modules.webhooks.realtime_ws._generate_llm_summary",
+                AsyncMock(return_value=""),
+            ),
         ):
             await _finalize_call(bridge)
     finally:
@@ -420,11 +457,20 @@ async def test_finalize_call_no_outcome_and_classification_fails_marks_failed() 
 @pytest.mark.asyncio
 async def test_finalize_call_tags_error_reason_when_bridge_init_failed() -> None:
     task = Task(
-        id=42, target_phone="+37360000001", status=TaskStatus.IN_PROGRESS,
-        template_id=5, user_id=7, slot_data={},
+        id=42,
+        target_phone="+37360000001",
+        status=TaskStatus.IN_PROGRESS,
+        template_id=5,
+        user_id=7,
+        slot_data={},
     )
     template = DialogTemplate(
-        id=5, name="T", base_script="x", required_slots=[], language="en", is_active=True,
+        id=5,
+        name="T",
+        base_script="x",
+        required_slots=[],
+        language="en",
+        is_active=True,
     )
     call_session = CallSession(id=1, task_id=42, start_time=datetime.now())
     mocks = _build_finalize_mocks(task, template, call_session)
@@ -433,10 +479,10 @@ async def test_finalize_call_tags_error_reason_when_bridge_init_failed() -> None
 
     contexts = _patch_finalize_dependencies(mocks)
     try:
-        with patch("app.modules.webhooks.realtime_ws._classify_outcome_from_transcript",
-                   AsyncMock(return_value=None)), \
-             patch("app.modules.webhooks.realtime_ws._generate_llm_summary",
-                   AsyncMock(return_value="")):
+        with (
+            patch("app.modules.webhooks.realtime_ws._classify_outcome_from_transcript", AsyncMock(return_value=None)),
+            patch("app.modules.webhooks.realtime_ws._generate_llm_summary", AsyncMock(return_value="")),
+        ):
             await _finalize_call(bridge)
     finally:
         _stop_patches(contexts)
@@ -448,11 +494,20 @@ async def test_finalize_call_tags_error_reason_when_bridge_init_failed() -> None
 @pytest.mark.asyncio
 async def test_finalize_call_persists_token_usage_to_call_session() -> None:
     task = Task(
-        id=42, target_phone="+37360000001", status=TaskStatus.IN_PROGRESS,
-        template_id=5, user_id=7, slot_data={},
+        id=42,
+        target_phone="+37360000001",
+        status=TaskStatus.IN_PROGRESS,
+        template_id=5,
+        user_id=7,
+        slot_data={},
     )
     template = DialogTemplate(
-        id=5, name="T", base_script="x", required_slots=[], language="en", is_active=True,
+        id=5,
+        name="T",
+        base_script="x",
+        required_slots=[],
+        language="en",
+        is_active=True,
     )
     call_session = CallSession(id=1, task_id=42, start_time=datetime.now())
     mocks = _build_finalize_mocks(task, template, call_session)
@@ -464,8 +519,7 @@ async def test_finalize_call_persists_token_usage_to_call_session() -> None:
 
     contexts = _patch_finalize_dependencies(mocks)
     try:
-        with patch("app.modules.webhooks.realtime_ws._generate_llm_summary",
-                   AsyncMock(return_value="summary")):
+        with patch("app.modules.webhooks.realtime_ws._generate_llm_summary", AsyncMock(return_value="summary")):
             await _finalize_call(bridge)
     finally:
         _stop_patches(contexts)

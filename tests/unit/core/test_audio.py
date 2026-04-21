@@ -105,9 +105,11 @@ async def test_async_strips_objective_achieved() -> None:
     fake_mp3 = b"\xff\xfb\x90\x00" + b"\x00" * 50
 
     with patch("app.core.audio._synthesize_line", new_callable=AsyncMock, return_value=fake_mp3) as mock_synth:
-        await generate_demo_conversation_mp3_async([
-            ("Agent", "Thank you! [OBJECTIVE_ACHIEVED]"),
-        ])
+        await generate_demo_conversation_mp3_async(
+            [
+                ("Agent", "Thank you! [OBJECTIVE_ACHIEVED]"),
+            ]
+        )
         mock_synth.assert_called_once_with("Thank you!", VOICE_AGENT)
 
 
@@ -116,9 +118,11 @@ async def test_async_strips_objective_failed() -> None:
     fake_mp3 = b"\xff\xfb\x90\x00" + b"\x00" * 50
 
     with patch("app.core.audio._synthesize_line", new_callable=AsyncMock, return_value=fake_mp3) as mock_synth:
-        await generate_demo_conversation_mp3_async([
-            ("Agent", "I could not complete the task. [OBJECTIVE_FAILED]"),
-        ])
+        await generate_demo_conversation_mp3_async(
+            [
+                ("Agent", "I could not complete the task. [OBJECTIVE_FAILED]"),
+            ]
+        )
         mock_synth.assert_called_once_with("I could not complete the task.", VOICE_AGENT)
 
 
@@ -127,9 +131,11 @@ async def test_async_strips_both_markers() -> None:
     fake_mp3 = b"\xff\xfb\x90\x00" + b"\x00" * 50
 
     with patch("app.core.audio._synthesize_line", new_callable=AsyncMock, return_value=fake_mp3) as mock_synth:
-        await generate_demo_conversation_mp3_async([
-            ("Agent", "[OBJECTIVE_ACHIEVED] [OBJECTIVE_FAILED]"),
-        ])
+        await generate_demo_conversation_mp3_async(
+            [
+                ("Agent", "[OBJECTIVE_ACHIEVED] [OBJECTIVE_FAILED]"),
+            ]
+        )
         # Both markers stripped → empty text → skipped entirely
         mock_synth.assert_not_called()
 
@@ -176,11 +182,13 @@ async def test_async_multiple_lines_different_voices() -> None:
     fake_mp3 = b"\xff\xfb\x90\x00" + b"\x00" * 50
 
     with patch("app.core.audio._synthesize_line", new_callable=AsyncMock, return_value=fake_mp3) as mock_synth:
-        await generate_demo_conversation_mp3_async([
-            ("Agent", "Hello"),
-            ("Caller", "Hi"),
-            ("Agent", "How are you?"),
-        ])
+        await generate_demo_conversation_mp3_async(
+            [
+                ("Agent", "Hello"),
+                ("Caller", "Hi"),
+                ("Agent", "How are you?"),
+            ]
+        )
         calls = mock_synth.call_args_list
         assert len(calls) == 3
         assert calls[0].args[1] == VOICE_AGENT
@@ -201,10 +209,12 @@ async def test_async_concatenates_mp3_parts() -> None:
         return part1 if call_count == 1 else part2
 
     with patch("app.core.audio._synthesize_line", side_effect=mock_synthesize):
-        result = await generate_demo_conversation_mp3_async([
-            ("Agent", "First"),
-            ("Caller", "Second"),
-        ])
+        result = await generate_demo_conversation_mp3_async(
+            [
+                ("Agent", "First"),
+                ("Caller", "Second"),
+            ]
+        )
 
     assert result == part1 + part2
 
@@ -214,22 +224,26 @@ async def test_async_skips_empty_text_lines() -> None:
     fake_mp3 = b"\xff\xfb\x90\x00" + b"\x00" * 50
 
     with patch("app.core.audio._synthesize_line", new_callable=AsyncMock, return_value=fake_mp3) as mock_synth:
-        await generate_demo_conversation_mp3_async([
-            ("Agent", "Hello"),
-            ("Caller", ""),
-            ("Agent", "  "),
-            ("Caller", "Goodbye"),
-        ])
+        await generate_demo_conversation_mp3_async(
+            [
+                ("Agent", "Hello"),
+                ("Caller", ""),
+                ("Agent", "  "),
+                ("Caller", "Goodbye"),
+            ]
+        )
         # Only "Hello" and "Goodbye" should be synthesized
         assert mock_synth.call_count == 2
 
 
 @pytest.mark.asyncio
 async def test_async_skips_marker_only_lines() -> None:
-    result = await generate_demo_conversation_mp3_async([
-        ("Agent", "[OBJECTIVE_ACHIEVED]"),
-        ("Caller", ""),
-    ])
+    result = await generate_demo_conversation_mp3_async(
+        [
+            ("Agent", "[OBJECTIVE_ACHIEVED]"),
+            ("Caller", ""),
+        ]
+    )
     assert result[:4] == b"RIFF"  # WAV fallback
 
 
@@ -237,10 +251,12 @@ async def test_async_skips_marker_only_lines() -> None:
 async def test_async_handles_tts_failure_gracefully() -> None:
     """If TTS fails for all lines, should fall back to WAV."""
     with patch("app.core.audio._synthesize_line", new_callable=AsyncMock, side_effect=Exception("TTS error")):
-        result = await generate_demo_conversation_mp3_async([
-            ("Agent", "Hello"),
-            ("Caller", "Hi"),
-        ])
+        result = await generate_demo_conversation_mp3_async(
+            [
+                ("Agent", "Hello"),
+                ("Caller", "Hi"),
+            ]
+        )
     assert result[:4] == b"RIFF"
 
 
@@ -258,10 +274,12 @@ async def test_async_handles_partial_tts_failure() -> None:
         return fake_mp3
 
     with patch("app.core.audio._synthesize_line", side_effect=mock_synthesize):
-        result = await generate_demo_conversation_mp3_async([
-            ("Agent", "Hello"),
-            ("Caller", "Hi"),
-        ])
+        result = await generate_demo_conversation_mp3_async(
+            [
+                ("Agent", "Hello"),
+                ("Caller", "Hi"),
+            ]
+        )
 
     assert result == fake_mp3  # Only second line succeeded
     assert not result[:4].startswith(b"RIFF")
@@ -271,9 +289,11 @@ async def test_async_handles_partial_tts_failure() -> None:
 async def test_async_skips_empty_tts_output() -> None:
     """If TTS returns empty bytes, should skip that line."""
     with patch("app.core.audio._synthesize_line", new_callable=AsyncMock, return_value=b""):
-        result = await generate_demo_conversation_mp3_async([
-            ("Agent", "Hello"),
-        ])
+        result = await generate_demo_conversation_mp3_async(
+            [
+                ("Agent", "Hello"),
+            ]
+        )
     assert result[:4] == b"RIFF"  # WAV fallback
 
 
@@ -281,9 +301,11 @@ async def test_async_skips_empty_tts_output() -> None:
 async def test_async_edge_tts_not_installed() -> None:
     """When edge-tts import fails, should fall back to WAV."""
     with patch.dict("sys.modules", {"edge_tts": None}):
-        result = await generate_demo_conversation_mp3_async([
-            ("Agent", "Hello"),
-        ])
+        result = await generate_demo_conversation_mp3_async(
+            [
+                ("Agent", "Hello"),
+            ]
+        )
     assert isinstance(result, bytes)
     # Falls back to WAV since import fails
     assert result[:4] == b"RIFF"

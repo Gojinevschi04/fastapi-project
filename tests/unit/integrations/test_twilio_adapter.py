@@ -5,8 +5,10 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_initiate_call() -> None:
-    with patch("app.integrations.twilio_adapter.Client") as mock_client_cls, \
-         patch("app.integrations.twilio_adapter.settings") as mock_settings:
+    with (
+        patch("app.integrations.twilio_adapter.Client") as mock_client_cls,
+        patch("app.integrations.twilio_adapter.settings") as mock_settings,
+    ):
         mock_settings.TWILIO_ACCOUNT_SID = "test-sid"
         mock_settings.TWILIO_AUTH_TOKEN = "test-token"
         mock_settings.TWILIO_PHONE_NUMBER = "+15551234567"
@@ -31,8 +33,10 @@ async def test_initiate_call() -> None:
 
 @pytest.mark.asyncio
 async def test_hangup() -> None:
-    with patch("app.integrations.twilio_adapter.Client") as mock_client_cls, \
-         patch("app.integrations.twilio_adapter.settings") as mock_settings:
+    with (
+        patch("app.integrations.twilio_adapter.Client") as mock_client_cls,
+        patch("app.integrations.twilio_adapter.settings") as mock_settings,
+    ):
         mock_settings.TWILIO_ACCOUNT_SID = "test-sid"
         mock_settings.TWILIO_AUTH_TOKEN = "test-token"
         mock_settings.TWILIO_PHONE_NUMBER = "+15551234567"
@@ -51,8 +55,10 @@ async def test_hangup() -> None:
 
 @pytest.mark.asyncio
 async def test_get_call_status() -> None:
-    with patch("app.integrations.twilio_adapter.Client") as mock_client_cls, \
-         patch("app.integrations.twilio_adapter.settings") as mock_settings:
+    with (
+        patch("app.integrations.twilio_adapter.Client") as mock_client_cls,
+        patch("app.integrations.twilio_adapter.settings") as mock_settings,
+    ):
         mock_settings.TWILIO_ACCOUNT_SID = "test-sid"
         mock_settings.TWILIO_AUTH_TOKEN = "test-token"
         mock_settings.TWILIO_PHONE_NUMBER = "+15551234567"
@@ -74,8 +80,10 @@ async def test_get_call_status() -> None:
 
 @pytest.mark.asyncio
 async def test_get_recording_url() -> None:
-    with patch("app.integrations.twilio_adapter.Client") as mock_client_cls, \
-         patch("app.integrations.twilio_adapter.settings") as mock_settings:
+    with (
+        patch("app.integrations.twilio_adapter.Client") as mock_client_cls,
+        patch("app.integrations.twilio_adapter.settings") as mock_settings,
+    ):
         mock_settings.TWILIO_ACCOUNT_SID = "test-sid"
         mock_settings.TWILIO_AUTH_TOKEN = "test-token"
         mock_settings.TWILIO_PHONE_NUMBER = "+15551234567"
@@ -97,8 +105,10 @@ async def test_get_recording_url() -> None:
 
 @pytest.mark.asyncio
 async def test_get_recording_url_none() -> None:
-    with patch("app.integrations.twilio_adapter.Client") as mock_client_cls, \
-         patch("app.integrations.twilio_adapter.settings") as mock_settings:
+    with (
+        patch("app.integrations.twilio_adapter.Client") as mock_client_cls,
+        patch("app.integrations.twilio_adapter.settings") as mock_settings,
+    ):
         mock_settings.TWILIO_ACCOUNT_SID = "test-sid"
         mock_settings.TWILIO_AUTH_TOKEN = "test-token"
         mock_settings.TWILIO_PHONE_NUMBER = "+15551234567"
@@ -117,9 +127,11 @@ async def test_get_recording_url_none() -> None:
 
 @pytest.mark.asyncio
 async def test_initiate_call_retry_on_failure() -> None:
-    with patch("app.integrations.twilio_adapter.Client") as mock_client_cls, \
-         patch("app.integrations.twilio_adapter.settings") as mock_settings, \
-         patch("app.integrations.twilio_adapter.asyncio") as mock_asyncio:
+    with (
+        patch("app.integrations.twilio_adapter.Client") as mock_client_cls,
+        patch("app.integrations.twilio_adapter.settings") as mock_settings,
+        patch("app.integrations.twilio_adapter.asyncio") as mock_asyncio,
+    ):
         mock_settings.TWILIO_ACCOUNT_SID = "test-sid"
         mock_settings.TWILIO_AUTH_TOKEN = "test-token"
         mock_settings.TWILIO_PHONE_NUMBER = "+15551234567"
@@ -136,9 +148,7 @@ async def test_initiate_call_retry_on_failure() -> None:
 
         adapter = TwilioAdapter()
         # First two attempts fail, third succeeds
-        adapter._run_sync = AsyncMock(
-            side_effect=[Exception("busy"), Exception("no-answer"), mock_call]
-        )
+        adapter._run_sync = AsyncMock(side_effect=[Exception("busy"), Exception("no-answer"), mock_call])
 
         result = await adapter.initiate_call("+37312345678", "https://example.com/webhook")
 
@@ -149,9 +159,11 @@ async def test_initiate_call_retry_on_failure() -> None:
 
 @pytest.mark.asyncio
 async def test_initiate_call_all_retries_fail() -> None:
-    with patch("app.integrations.twilio_adapter.Client") as mock_client_cls, \
-         patch("app.integrations.twilio_adapter.settings") as mock_settings, \
-         patch("app.integrations.twilio_adapter.asyncio") as mock_asyncio:
+    with (
+        patch("app.integrations.twilio_adapter.Client") as mock_client_cls,
+        patch("app.integrations.twilio_adapter.settings") as mock_settings,
+        patch("app.integrations.twilio_adapter.asyncio") as mock_asyncio,
+    ):
         mock_settings.TWILIO_ACCOUNT_SID = "test-sid"
         mock_settings.TWILIO_AUTH_TOKEN = "test-token"
         mock_settings.TWILIO_PHONE_NUMBER = "+15551234567"
@@ -174,9 +186,11 @@ async def test_initiate_call_all_retries_fail() -> None:
 
 @pytest.mark.asyncio
 async def test_get_recording_audio() -> None:
-    with patch("app.integrations.twilio_adapter.Client") as mock_client_cls, \
-         patch("app.integrations.twilio_adapter.settings") as mock_settings, \
-         patch("app.integrations.twilio_adapter.httpx") as mock_httpx:
+    with (
+        patch("app.integrations.twilio_adapter.Client") as mock_client_cls,
+        patch("app.integrations.twilio_adapter.settings") as mock_settings,
+        patch("app.integrations.twilio_adapter.httpx") as mock_httpx,
+    ):
         mock_settings.TWILIO_ACCOUNT_SID = "test-sid"
         mock_settings.TWILIO_AUTH_TOKEN = "test-token"
         mock_settings.TWILIO_PHONE_NUMBER = "+15551234567"

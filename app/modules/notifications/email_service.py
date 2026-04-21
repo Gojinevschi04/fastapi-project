@@ -169,17 +169,15 @@ class EmailService:
 
     async def send_password_changed(self, to_email: str, language: str = "en") -> bool:
         translations = get_translations(language)
-        content = (
-            _paragraph(translations["password_changed_body"])
-            + _paragraph(translations["password_changed_warning"])
+        content = _paragraph(translations["password_changed_body"]) + _paragraph(
+            translations["password_changed_warning"]
         )
         return await self._send_translated(to_email, "password_changed_title", WARNING, content, language)
 
     async def send_email_changed(self, to_old_email: str, new_email: str, language: str = "en") -> bool:
         translations = get_translations(language)
-        content = (
-            _paragraph(f'{translations["email_changed_body"]} <strong>{new_email}</strong>.')
-            + _paragraph(translations["email_changed_warning"])
+        content = _paragraph(f"{translations['email_changed_body']} <strong>{new_email}</strong>.") + _paragraph(
+            translations["email_changed_warning"]
         )
         return await self._send_translated(to_old_email, "email_changed_title", WARNING, content, language)
 
@@ -233,9 +231,7 @@ class EmailService:
             _paragraph("New feedback received from the contact form.")
             + _info_box("From", f"{sender_name} ({sender_email})")
             + _colored_box("Message", message, STYLE_INFO_BOX, GRAY)
-            + _note(
-                f'Reply directly to <a href="mailto:{sender_email}" style="color:{PRIMARY};">{sender_email}</a>'
-            )
+            + _note(f'Reply directly to <a href="mailto:{sender_email}" style="color:{PRIMARY};">{sender_email}</a>')
         )
         subject = _subject(f"Feedback from {sender_name}")
         body = _base_template("New Feedback", PRIMARY, content)

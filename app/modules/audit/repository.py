@@ -14,7 +14,9 @@ class AuditLogRepository(Repository):
         return entry
 
     async def get_all_paginated(
-        self, limit: int = 50, offset: int = 0,
+        self,
+        limit: int = 50,
+        offset: int = 0,
     ) -> tuple[Sequence[AuditLog], int]:
         query = select(AuditLog).order_by(AuditLog.created_at.desc()).offset(offset).limit(limit)
         result = await self._session.exec(query)

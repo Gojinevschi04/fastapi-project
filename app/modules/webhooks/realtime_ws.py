@@ -66,7 +66,11 @@ async def media_stream(websocket: WebSocket) -> None:
     call_sid = start_event.get("start", {}).get("callSid")
     logger.info(
         "[task=%d] WS start event parsed: stream_sid=%s call_sid=%s lang=%s prompt_len=%d",
-        task_id, stream_sid, call_sid, language, len(system_prompt),
+        task_id,
+        stream_sid,
+        call_sid,
+        language,
+        len(system_prompt),
     )
 
     bridge = RealtimeBridge(
@@ -118,8 +122,7 @@ async def _build_system_prompt_for_task(task_id: int, language: str) -> str | No
             log_lines = await log_line_repo.get_by_session_id(call_session.id)
             if log_lines:
                 formatted_lines = [
-                    f"{'Agent' if line.speaker == Speaker.AGENT else 'Interlocutor'}: {line.text}"
-                    for line in log_lines
+                    f"{'Agent' if line.speaker == Speaker.AGENT else 'Interlocutor'}: {line.text}" for line in log_lines
                 ]
                 prior_context = "\n".join(formatted_lines[-20:])
 
@@ -221,11 +224,12 @@ async def _finalize_call(bridge: RealtimeBridge) -> None:
             template = await template_repo.get_by_id(task.template_id)
             objective = template.base_script if template else ""
             outcome = await _classify_outcome_from_transcript(
-                bridge.transcript_buffer, bridge.language, objective,
+                bridge.transcript_buffer,
+                bridge.language,
+                objective,
             )
             if outcome:
-                logger.info("[task=%d] Inferred outcome from transcript: %s",
-                            bridge.task_id, outcome)
+                logger.info("[task=%d] Inferred outcome from transcript: %s", bridge.task_id, outcome)
 
         if outcome:
             status_str = outcome.get("status", "failed")
@@ -243,11 +247,15 @@ async def _finalize_call(bridge: RealtimeBridge) -> None:
         await task_repo.update(task)
 
         if call_broadcaster.has_listeners(bridge.task_id):
-            await call_broadcaster.emit(bridge.task_id, "call_ended", {
-                "status": task.status,
-                "summary": task.summary,
-                "error_reason": task.error_reason,
-            })
+            await call_broadcaster.emit(
+                bridge.task_id,
+                "call_ended",
+                {
+                    "status": task.status,
+                    "summary": task.summary,
+                    "error_reason": task.error_reason,
+                },
+            )
 
         post_call = PostCallProcessor(
             task_repository=task_repo,

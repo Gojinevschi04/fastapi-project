@@ -259,9 +259,7 @@ async def test_get_recording_audio_no_uri(mock_task: Task, mock_call_session: Ca
 
 
 @pytest.mark.asyncio
-async def test_get_recording_audio_fallback_wav_no_log_lines(
-    mock_task: Task, mock_call_session: CallSession
-) -> None:
+async def test_get_recording_audio_fallback_wav_no_log_lines(mock_task: Task, mock_call_session: CallSession) -> None:
     """When Twilio fails and no log lines exist, should fall back to WAV."""
     mock_call_session.recording_uri = "https://fake-twilio-url.com/recording.wav"
     mock_call_session.duration = 3
@@ -420,9 +418,7 @@ async def test_get_recording_audio_tts_fallback_when_returns_wav(
 
 
 @pytest.mark.asyncio
-async def test_get_recording_audio_as_admin(
-    mock_task: Task, mock_call_session: CallSession
-) -> None:
+async def test_get_recording_audio_as_admin(mock_task: Task, mock_call_session: CallSession) -> None:
     mock_call_session.recording_uri = "https://fake-twilio-url.com/recording.wav"
     mock_call_session.duration = 2
     mock_task_repo = MagicMock(spec=TaskRepository)

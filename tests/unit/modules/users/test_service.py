@@ -151,8 +151,11 @@ async def test_get_profile_not_found() -> None:
 @pytest.mark.asyncio
 async def test_update_profile_success(mock_user: User) -> None:
     updated_user = User(
-        id=1, email="new@example.com", role=UserRole.USER,
-        created_at=mock_user.created_at, updated_at=mock_user.updated_at,
+        id=1,
+        email="new@example.com",
+        role=UserRole.USER,
+        created_at=mock_user.created_at,
+        updated_at=mock_user.updated_at,
     )
     mock_user_repo = MagicMock(spec=UserRepository)
     mock_user_repo.get_by_id = AsyncMock(return_value=mock_user)
@@ -170,8 +173,11 @@ async def test_update_profile_success(mock_user: User) -> None:
 @pytest.mark.asyncio
 async def test_update_profile_email_change(mock_user: User) -> None:
     updated_user = User(
-        id=1, email="changed@example.com", role=UserRole.USER,
-        created_at=mock_user.created_at, updated_at=mock_user.updated_at,
+        id=1,
+        email="changed@example.com",
+        role=UserRole.USER,
+        created_at=mock_user.created_at,
+        updated_at=mock_user.updated_at,
     )
     mock_user_repo = MagicMock(spec=UserRepository)
     mock_user_repo.get_by_id = AsyncMock(return_value=mock_user)
@@ -202,9 +208,12 @@ async def test_update_profile_duplicate_email(mock_user: User) -> None:
 @pytest.mark.asyncio
 async def test_update_profile_phone_only(mock_user: User) -> None:
     updated_user = User(
-        id=1, email="test@example.com", role=UserRole.USER,
+        id=1,
+        email="test@example.com",
+        role=UserRole.USER,
         phone_number="+37399999999",
-        created_at=mock_user.created_at, updated_at=mock_user.updated_at,
+        created_at=mock_user.created_at,
+        updated_at=mock_user.updated_at,
     )
     mock_user_repo = MagicMock(spec=UserRepository)
     mock_user_repo.get_by_id = AsyncMock(return_value=mock_user)
@@ -263,13 +272,15 @@ async def test_change_password_user_not_found() -> None:
 async def test_get_usage_returns_aggregated_cost() -> None:
     mock_user_repo = MagicMock(spec=UserRepository)
     mock_call_session_repo = MagicMock(spec=CallSessionRepository)
-    mock_call_session_repo.get_usage_for_user = AsyncMock(return_value={
-        "input_audio_tokens": 1_000_000,
-        "output_audio_tokens": 1_000_000,
-        "input_text_tokens": 1_000_000,
-        "output_text_tokens": 1_000_000,
-        "call_count": 7,
-    })
+    mock_call_session_repo.get_usage_for_user = AsyncMock(
+        return_value={
+            "input_audio_tokens": 1_000_000,
+            "output_audio_tokens": 1_000_000,
+            "input_text_tokens": 1_000_000,
+            "output_text_tokens": 1_000_000,
+            "call_count": 7,
+        }
+    )
 
     service = UserService(user_repository=mock_user_repo, call_session_repository=mock_call_session_repo)
     response = await service.get_usage(user_id=1)
@@ -286,13 +297,15 @@ async def test_get_usage_returns_aggregated_cost() -> None:
 async def test_get_usage_zero_calls_returns_zero_cost() -> None:
     mock_user_repo = MagicMock(spec=UserRepository)
     mock_call_session_repo = MagicMock(spec=CallSessionRepository)
-    mock_call_session_repo.get_usage_for_user = AsyncMock(return_value={
-        "input_audio_tokens": 0,
-        "output_audio_tokens": 0,
-        "input_text_tokens": 0,
-        "output_text_tokens": 0,
-        "call_count": 0,
-    })
+    mock_call_session_repo.get_usage_for_user = AsyncMock(
+        return_value={
+            "input_audio_tokens": 0,
+            "output_audio_tokens": 0,
+            "input_text_tokens": 0,
+            "output_text_tokens": 0,
+            "call_count": 0,
+        }
+    )
 
     service = UserService(user_repository=mock_user_repo, call_session_repository=mock_call_session_repo)
     response = await service.get_usage(user_id=42)

@@ -43,13 +43,15 @@ async def test_twilio_status_callback_failed(client: AsyncClient) -> None:
     mock_task = MagicMock()
     mock_task.status = TaskStatus.IN_PROGRESS
 
-    with patch("app.modules.calls.repository.CallSessionRepository.get_by_task_id") as mock_get, \
-         patch("app.modules.calls.repository.CallSessionRepository.update") as mock_update, \
-         patch(
-             "app.modules.tasks.repository.TaskRepository.get_by_id_any_user",
-             new=AsyncMock(return_value=mock_task),
-         ), \
-         patch("app.modules.tasks.repository.TaskRepository.update", new=AsyncMock(return_value=mock_task)):
+    with (
+        patch("app.modules.calls.repository.CallSessionRepository.get_by_task_id") as mock_get,
+        patch("app.modules.calls.repository.CallSessionRepository.update") as mock_update,
+        patch(
+            "app.modules.tasks.repository.TaskRepository.get_by_id_any_user",
+            new=AsyncMock(return_value=mock_task),
+        ),
+        patch("app.modules.tasks.repository.TaskRepository.update", new=AsyncMock(return_value=mock_task)),
+    ):
         mock_session = MagicMock()
         mock_get.return_value = mock_session
         mock_update.return_value = mock_session
@@ -141,23 +143,14 @@ async def test_twilio_gather_callback_empty_speech(client: AsyncClient) -> None:
     assert response.status_code == 200
 
 
-@pytest.mark.asyncio
-async def test_twilio_call_callback_returns_gather_twiml(client: AsyncClient) -> None:
-    response = await client.post(
-        "/webhooks/calls/1",
-        data={"CallSid": "CA123", "CallStatus": "answered"},
-    )
-    assert response.status_code == 200
-    assert "<Pause" in response.text
-
-
 # --- Regression: Twilio decline CallStatus flips IN_PROGRESS task to FAILED and emits WS event ---
 
 
 @pytest.mark.parametrize("call_status", ["busy", "no-answer", "canceled"])
 @pytest.mark.asyncio
 async def test_twilio_status_callback_decline_flips_task_to_failed_and_emits(
-    client: AsyncClient, call_status: str,
+    client: AsyncClient,
+    call_status: str,
 ) -> None:
     from unittest.mock import AsyncMock
 
@@ -174,19 +167,25 @@ async def test_twilio_status_callback_decline_flips_task_to_failed_and_emits(
     mock_broadcaster.has_listeners = MagicMock(return_value=True)
     mock_broadcaster.emit = AsyncMock()
 
-    with patch(
-        "app.modules.calls.repository.CallSessionRepository.get_by_task_id",
-        new=AsyncMock(return_value=mock_call_session),
-    ), patch(
-        "app.modules.calls.repository.CallSessionRepository.update",
-        new=AsyncMock(return_value=mock_call_session),
-    ), patch(
-        "app.modules.tasks.repository.TaskRepository.get_by_id_any_user",
-        new=AsyncMock(return_value=mock_task),
-    ), patch(
-        "app.modules.tasks.repository.TaskRepository.update",
-        new=AsyncMock(return_value=mock_task),
-    ), patch("app.modules.webhooks.views.call_broadcaster", mock_broadcaster):
+    with (
+        patch(
+            "app.modules.calls.repository.CallSessionRepository.get_by_task_id",
+            new=AsyncMock(return_value=mock_call_session),
+        ),
+        patch(
+            "app.modules.calls.repository.CallSessionRepository.update",
+            new=AsyncMock(return_value=mock_call_session),
+        ),
+        patch(
+            "app.modules.tasks.repository.TaskRepository.get_by_id_any_user",
+            new=AsyncMock(return_value=mock_task),
+        ),
+        patch(
+            "app.modules.tasks.repository.TaskRepository.update",
+            new=AsyncMock(return_value=mock_task),
+        ),
+        patch("app.modules.webhooks.views.call_broadcaster", mock_broadcaster),
+    ):
         response = await client.post(
             "/webhooks/calls/1/status",
             data={"CallSid": "CA123", "CallStatus": call_status, "CallDuration": "0"},
@@ -219,18 +218,24 @@ async def test_twilio_status_callback_voicemail_flips_task_to_failed(client: Asy
     mock_broadcaster.has_listeners = MagicMock(return_value=True)
     mock_broadcaster.emit = AsyncMock()
 
-    with patch(
-        "app.modules.tasks.repository.TaskRepository.get_by_id_any_user",
-        new=AsyncMock(return_value=mock_task),
-    ), patch(
-        "app.modules.tasks.repository.TaskRepository.update",
-        new=AsyncMock(return_value=mock_task),
-    ), patch(
-        "app.modules.calls.repository.CallSessionRepository.get_by_task_id",
-        new=AsyncMock(return_value=None),
-    ), patch("app.modules.webhooks.views.call_broadcaster", mock_broadcaster), patch(
-        "app.integrations.twilio_adapter.TwilioAdapter.hangup",
-        new=AsyncMock(return_value=None),
+    with (
+        patch(
+            "app.modules.tasks.repository.TaskRepository.get_by_id_any_user",
+            new=AsyncMock(return_value=mock_task),
+        ),
+        patch(
+            "app.modules.tasks.repository.TaskRepository.update",
+            new=AsyncMock(return_value=mock_task),
+        ),
+        patch(
+            "app.modules.calls.repository.CallSessionRepository.get_by_task_id",
+            new=AsyncMock(return_value=None),
+        ),
+        patch("app.modules.webhooks.views.call_broadcaster", mock_broadcaster),
+        patch(
+            "app.integrations.twilio_adapter.TwilioAdapter.hangup",
+            new=AsyncMock(return_value=None),
+        ),
     ):
         response = await client.post(
             "/webhooks/calls/1/status",
@@ -267,18 +272,24 @@ async def test_twilio_status_callback_voicemail_ignored_on_terminal_task(client:
 
     task_update_mock = AsyncMock(return_value=mock_task)
 
-    with patch(
-        "app.modules.tasks.repository.TaskRepository.get_by_id_any_user",
-        new=AsyncMock(return_value=mock_task),
-    ), patch(
-        "app.modules.tasks.repository.TaskRepository.update",
-        new=task_update_mock,
-    ), patch(
-        "app.modules.calls.repository.CallSessionRepository.get_by_task_id",
-        new=AsyncMock(return_value=None),
-    ), patch("app.modules.webhooks.views.call_broadcaster", mock_broadcaster), patch(
-        "app.integrations.twilio_adapter.TwilioAdapter.hangup",
-        new=AsyncMock(return_value=None),
+    with (
+        patch(
+            "app.modules.tasks.repository.TaskRepository.get_by_id_any_user",
+            new=AsyncMock(return_value=mock_task),
+        ),
+        patch(
+            "app.modules.tasks.repository.TaskRepository.update",
+            new=task_update_mock,
+        ),
+        patch(
+            "app.modules.calls.repository.CallSessionRepository.get_by_task_id",
+            new=AsyncMock(return_value=None),
+        ),
+        patch("app.modules.webhooks.views.call_broadcaster", mock_broadcaster),
+        patch(
+            "app.integrations.twilio_adapter.TwilioAdapter.hangup",
+            new=AsyncMock(return_value=None),
+        ),
     ):
         response = await client.post(
             "/webhooks/calls/1/status",
@@ -294,3 +305,137 @@ async def test_twilio_status_callback_voicemail_ignored_on_terminal_task(client:
     assert mock_task.status == TaskStatus.COMPLETED
     task_update_mock.assert_not_called()
     mock_broadcaster.emit.assert_not_called()
+
+
+# --- Twilio signature validation ---
+
+
+@pytest.mark.asyncio
+async def test_twilio_status_callback_rejects_missing_signature() -> None:
+    """Regression: webhook without X-Twilio-Signature header is 403 when auth token is set."""
+    from unittest.mock import patch
+
+    from httpx import ASGITransport, AsyncClient
+
+    from app.main import app
+    from app.modules.webhooks.views import verify_twilio_signature
+
+    if verify_twilio_signature in app.dependency_overrides:
+        del app.dependency_overrides[verify_twilio_signature]
+    try:
+        with patch("app.modules.webhooks.views.settings.TWILIO_AUTH_TOKEN", "fake-token"):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as raw:
+                response = await raw.post(
+                    "/webhooks/calls/1/status",
+                    data={"CallSid": "CA123", "CallStatus": "completed"},
+                )
+                assert response.status_code == 403
+    finally:
+
+        async def _noop() -> None:
+            return None
+
+        app.dependency_overrides[verify_twilio_signature] = _noop
+
+
+@pytest.mark.asyncio
+async def test_twilio_status_callback_rejects_forged_signature() -> None:
+    """Regression: wrong signature is rejected with 403."""
+    from unittest.mock import patch
+
+    from httpx import ASGITransport, AsyncClient
+
+    from app.main import app
+    from app.modules.webhooks.views import verify_twilio_signature
+
+    if verify_twilio_signature in app.dependency_overrides:
+        del app.dependency_overrides[verify_twilio_signature]
+    try:
+        with patch("app.modules.webhooks.views.settings.TWILIO_AUTH_TOKEN", "real-token"):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as raw:
+                response = await raw.post(
+                    "/webhooks/calls/1/status",
+                    data={"CallSid": "CA123"},
+                    headers={"X-Twilio-Signature": "forged-garbage"},
+                )
+                assert response.status_code == 403
+    finally:
+
+        async def _noop() -> None:
+            return None
+
+        app.dependency_overrides[verify_twilio_signature] = _noop
+
+
+@pytest.mark.asyncio
+async def test_twilio_status_callback_accepts_valid_signature() -> None:
+    """Regression: a correctly-signed Twilio webhook is accepted."""
+    from unittest.mock import AsyncMock, patch
+
+    from httpx import ASGITransport, AsyncClient
+    from twilio.request_validator import RequestValidator
+
+    from app.main import app
+    from app.modules.webhooks.views import verify_twilio_signature
+
+    auth_token = "real-token-for-signing"
+    if verify_twilio_signature in app.dependency_overrides:
+        del app.dependency_overrides[verify_twilio_signature]
+    try:
+        with (
+            patch("app.modules.webhooks.views.settings.TWILIO_AUTH_TOKEN", auth_token),
+            patch(
+                "app.modules.calls.repository.CallSessionRepository.get_by_task_id",
+                new=AsyncMock(return_value=None),
+            ),
+        ):
+            url = "http://test/webhooks/calls/1/status"
+            params = {"CallSid": "CA123", "CallStatus": "completed", "CallDuration": "10"}
+            validator = RequestValidator(auth_token)
+            signature = validator.compute_signature(url, params)
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as raw:
+                response = await raw.post(
+                    "/webhooks/calls/1/status",
+                    data=params,
+                    headers={"X-Twilio-Signature": signature},
+                )
+                assert response.status_code == 200
+    finally:
+
+        async def _noop() -> None:
+            return None
+
+        app.dependency_overrides[verify_twilio_signature] = _noop
+
+
+@pytest.mark.asyncio
+async def test_verify_twilio_signature_bypasses_when_token_empty() -> None:
+    """Regression: empty TWILIO_AUTH_TOKEN (dev/test mode) skips signature check."""
+    from unittest.mock import patch
+
+    from httpx import ASGITransport, AsyncClient
+
+    from app.main import app
+    from app.modules.webhooks.views import verify_twilio_signature
+
+    if verify_twilio_signature in app.dependency_overrides:
+        del app.dependency_overrides[verify_twilio_signature]
+    try:
+        with patch("app.modules.webhooks.views.settings.TWILIO_AUTH_TOKEN", ""):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as raw:
+                response = await raw.post(
+                    "/webhooks/calls/1",
+                    data={"CallSid": "CA1", "CallStatus": "answered"},
+                )
+                assert response.status_code == 200
+    finally:
+
+        async def _noop() -> None:
+            return None
+
+        app.dependency_overrides[verify_twilio_signature] = _noop

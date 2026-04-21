@@ -54,9 +54,17 @@ class PostCallProcessor:
 
         if user.webhook_url:
             from app.modules.notifications.webhook_dispatcher import send_task_webhook
+
             coroutines.append(send_task_webhook(user.webhook_url, task))
 
-        await asyncio.gather(*coroutines)
+        results = await asyncio.gather(*coroutines, return_exceptions=True)
+        for result in results:
+            if isinstance(result, Exception):
+                logger.exception(
+                    "Post-call coroutine failed for task %d: %s",
+                    task.id,
+                    result,
+                )
 
         logger.info("Post-call processing completed for task %d", task.id)
 

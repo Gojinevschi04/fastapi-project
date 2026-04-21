@@ -20,9 +20,7 @@ class ConversationManager:
 
     def add_interlocutor_message(self, text: str, intent: str | None, session_id: int) -> None:
         self.history.append({"role": "user", "content": text})
-        self.log_lines.append(
-            self._create_log_line(session_id, Speaker.INTERLOCUTOR, text, intent)
-        )
+        self.log_lines.append(self._create_log_line(session_id, Speaker.INTERLOCUTOR, text, intent))
 
     def is_complete(self, agent_reply: str) -> bool:
         return "[OBJECTIVE_ACHIEVED]" in agent_reply or "[OBJECTIVE_FAILED]" in agent_reply
@@ -36,9 +34,7 @@ class ConversationManager:
 
     def has_objective_achieved(self) -> bool:
         return any(
-            "[OBJECTIVE_ACHIEVED]" in msg.get("content", "")
-            for msg in self.history
-            if msg["role"] == "assistant"
+            "[OBJECTIVE_ACHIEVED]" in msg.get("content", "") for msg in self.history if msg["role"] == "assistant"
         )
 
     def _create_log_line(

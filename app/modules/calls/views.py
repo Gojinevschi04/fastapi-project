@@ -107,9 +107,7 @@ async def download_recording_view(
     """Stream or download the call recording audio."""
     try:
         is_admin = current_user.role == UserRole.ADMIN
-        audio_bytes, content_type = await call_service.get_recording_audio(
-            task_id, current_user.id, is_admin=is_admin
-        )
+        audio_bytes, content_type = await call_service.get_recording_audio(task_id, current_user.id, is_admin=is_admin)
     except TaskNotFoundError as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e)) from e
     except CallSessionNotFoundError as e:

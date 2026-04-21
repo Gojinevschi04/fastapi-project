@@ -103,9 +103,7 @@ class TaskRepository(Repository):
         return tasks, total
 
     async def count_by_status_all(self) -> dict[str, int]:
-        result = await self._session.exec(
-            select(Task.status, func.count()).group_by(Task.status)
-        )
+        result = await self._session.exec(select(Task.status, func.count()).group_by(Task.status))
         counts: dict[str, int] = {}
         for status, count in result.all():
             counts[status] = count
@@ -119,9 +117,7 @@ class TaskRepository(Repository):
         """Count tasks created for a given phone number in the last 24 hours."""
         cutoff = datetime.now() - timedelta(hours=24)
         result = await self._session.exec(
-            select(func.count())
-            .select_from(Task)
-            .where(Task.target_phone == target_phone, Task.created_at >= cutoff)
+            select(func.count()).select_from(Task).where(Task.target_phone == target_phone, Task.created_at >= cutoff)
         )
         return result.one()
 
@@ -129,8 +125,6 @@ class TaskRepository(Repository):
         """Count tasks created by a given user in the last 24 hours."""
         cutoff = datetime.now() - timedelta(hours=24)
         result = await self._session.exec(
-            select(func.count())
-            .select_from(Task)
-            .where(Task.user_id == user_id, Task.created_at >= cutoff)
+            select(func.count()).select_from(Task).where(Task.user_id == user_id, Task.created_at >= cutoff)
         )
         return result.one()

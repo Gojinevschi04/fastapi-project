@@ -169,7 +169,12 @@ class TaskService:
         await call_session_repo.delete(call_session)
 
     async def rate_task(
-        self, task_id: int, user_id: int, rating: int, comment: str | None, is_admin: bool = False,
+        self,
+        task_id: int,
+        user_id: int,
+        rating: int,
+        comment: str | None,
+        is_admin: bool = False,
     ) -> Task:
         if is_admin:
             task = await self.task_repository.get_by_id_any_user(task_id)
@@ -179,9 +184,7 @@ class TaskService:
             raise TaskNotFoundError(f"Task with id {task_id} not found")
 
         if task.status not in (TaskStatus.COMPLETED, TaskStatus.FAILED):
-            raise InvalidTaskDataError(
-                f"Only completed or failed tasks can be rated (current status: {task.status})"
-            )
+            raise InvalidTaskDataError(f"Only completed or failed tasks can be rated (current status: {task.status})")
 
         task.user_rating = rating
         task.user_rating_comment = comment

@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 
+from app.core.constants import MAX_UPLOAD_SIZE_BYTES
 from app.core.schema import MessageResponse
 from app.modules.files.schema import FileResponse
 from app.modules.files.service import FileService
@@ -28,8 +29,17 @@ async def upload_file_view(
     if not file.filename:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="No file provided")
 
+    oversize_error = HTTPException(
+        status_code=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+        detail=f"File exceeds maximum size of {MAX_UPLOAD_SIZE_BYTES} bytes",
+    )
+    if file.size is not None and file.size > MAX_UPLOAD_SIZE_BYTES:
+        raise oversize_error
+
     try:
         file_content = await file.read()
+        if len(file_content) > MAX_UPLOAD_SIZE_BYTES:
+            raise oversize_error
         file_record = await file_service.save_file(file_content, file.filename, current_user.id)
 
         return FileResponse(
@@ -41,6 +51,8 @@ async def upload_file_view(
             updated_at=file_record.updated_at,
             download_url=_get_download_url(request, file_record.id),
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(HTTPStatus.BAD_REQUEST, detail="Could not save file") from e
 

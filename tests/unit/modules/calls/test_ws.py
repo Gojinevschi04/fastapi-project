@@ -82,10 +82,13 @@ async def test_call_status_ws_unauthorized_closes_with_4001() -> None:
     websocket = MagicMock()
     websocket.close = AsyncMock()
 
-    with patch(
-        "app.modules.calls.ws._authenticate_ws",
-        new=AsyncMock(return_value=(None, False)),
-    ), patch("app.modules.calls.ws.call_broadcaster") as mock_broadcaster:
+    with (
+        patch(
+            "app.modules.calls.ws._authenticate_ws",
+            new=AsyncMock(return_value=(None, False)),
+        ),
+        patch("app.modules.calls.ws.call_broadcaster") as mock_broadcaster,
+    ):
         await call_status_ws(websocket=websocket, task_id=1, token="bad-token")
 
     websocket.close.assert_awaited_once()
@@ -100,13 +103,17 @@ async def test_call_status_ws_authorized_connects_and_cleans_up_on_disconnect() 
     websocket.receive_text = AsyncMock(side_effect=WebSocketDisconnect())
     websocket.close = AsyncMock()
 
-    with patch(
-        "app.modules.calls.ws._authenticate_ws",
-        new=AsyncMock(return_value=(42, False)),
-    ), patch(
-        "app.modules.calls.ws._user_may_listen",
-        new=AsyncMock(return_value=True),
-    ), patch("app.modules.calls.ws.call_broadcaster") as mock_broadcaster:
+    with (
+        patch(
+            "app.modules.calls.ws._authenticate_ws",
+            new=AsyncMock(return_value=(42, False)),
+        ),
+        patch(
+            "app.modules.calls.ws._user_may_listen",
+            new=AsyncMock(return_value=True),
+        ),
+        patch("app.modules.calls.ws.call_broadcaster") as mock_broadcaster,
+    ):
         mock_broadcaster.connect = AsyncMock()
         mock_broadcaster.disconnect = AsyncMock()
 
@@ -121,13 +128,17 @@ async def test_call_status_ws_non_owner_rejected() -> None:
     websocket = MagicMock()
     websocket.close = AsyncMock()
 
-    with patch(
-        "app.modules.calls.ws._authenticate_ws",
-        new=AsyncMock(return_value=(42, False)),
-    ), patch(
-        "app.modules.calls.ws._user_may_listen",
-        new=AsyncMock(return_value=False),
-    ), patch("app.modules.calls.ws.call_broadcaster") as mock_broadcaster:
+    with (
+        patch(
+            "app.modules.calls.ws._authenticate_ws",
+            new=AsyncMock(return_value=(42, False)),
+        ),
+        patch(
+            "app.modules.calls.ws._user_may_listen",
+            new=AsyncMock(return_value=False),
+        ),
+        patch("app.modules.calls.ws.call_broadcaster") as mock_broadcaster,
+    ):
         await call_status_ws(websocket=websocket, task_id=5, token="ok")
 
     websocket.close.assert_awaited_once()
@@ -140,10 +151,13 @@ async def test_call_status_ws_admin_listens_to_any_task() -> None:
     websocket.receive_text = AsyncMock(side_effect=WebSocketDisconnect())
     websocket.close = AsyncMock()
 
-    with patch(
-        "app.modules.calls.ws._authenticate_ws",
-        new=AsyncMock(return_value=(1, True)),
-    ), patch("app.modules.calls.ws.call_broadcaster") as mock_broadcaster:
+    with (
+        patch(
+            "app.modules.calls.ws._authenticate_ws",
+            new=AsyncMock(return_value=(1, True)),
+        ),
+        patch("app.modules.calls.ws.call_broadcaster") as mock_broadcaster,
+    ):
         mock_broadcaster.connect = AsyncMock()
         mock_broadcaster.disconnect = AsyncMock()
 
@@ -157,10 +171,13 @@ async def test_call_status_ws_cleans_up_even_on_unexpected_error() -> None:
     websocket = MagicMock()
     websocket.receive_text = AsyncMock(side_effect=RuntimeError("boom"))
 
-    with patch(
-        "app.modules.calls.ws._authenticate_ws",
-        new=AsyncMock(return_value=(7, True)),
-    ), patch("app.modules.calls.ws.call_broadcaster") as mock_broadcaster:
+    with (
+        patch(
+            "app.modules.calls.ws._authenticate_ws",
+            new=AsyncMock(return_value=(7, True)),
+        ),
+        patch("app.modules.calls.ws.call_broadcaster") as mock_broadcaster,
+    ):
         mock_broadcaster.connect = AsyncMock()
         mock_broadcaster.disconnect = AsyncMock()
 
@@ -168,3 +185,83 @@ async def test_call_status_ws_cleans_up_even_on_unexpected_error() -> None:
             await call_status_ws(websocket=websocket, task_id=9, token="admin")
 
     mock_broadcaster.disconnect.assert_awaited_once_with(9, websocket)
+
+
+@pytest.mark.asyncio
+async def test_authenticate_ws_accepts_ws_ticket_type() -> None:
+    """Regression: WS handler should accept short-lived ws_ticket tokens."""
+    from app.modules.auth.auth_handler import create_ws_ticket
+    from app.modules.calls.ws import _authenticate_ws
+
+    ticket = create_ws_ticket(user_id=7, is_admin=False)
+    user_id, is_admin = await _authenticate_ws(ticket)
+
+    assert user_id == 7
+    assert is_admin is False
+
+
+@pytest.mark.asyncio
+async def test_authenticate_ws_accepts_admin_ws_ticket() -> None:
+    from app.modules.auth.auth_handler import create_ws_ticket
+    from app.modules.calls.ws import _authenticate_ws
+
+    ticket = create_ws_ticket(user_id=1, is_admin=True)
+    user_id, is_admin = await _authenticate_ws(ticket)
+
+    assert user_id == 1
+    assert is_admin is True
+
+
+@pytest.mark.asyncio
+async def test_authenticate_ws_rejects_refresh_token() -> None:
+    """A refresh token must not authenticate a WS connection."""
+    from app.modules.auth.auth_handler import create_refresh_token
+    from app.modules.calls.ws import _authenticate_ws
+
+    refresh = create_refresh_token(user_id=7)
+    user_id, is_admin = await _authenticate_ws(refresh)
+
+    assert user_id is None
+    assert is_admin is False
+
+
+@pytest.mark.asyncio
+async def test_authenticate_ws_rejects_expired_ticket() -> None:
+    """Regression: a ticket past its 30s TTL must not authenticate."""
+    from datetime import UTC, datetime, timedelta
+
+    import jwt
+
+    from app.core.config import settings
+    from app.modules.calls.ws import _authenticate_ws
+
+    expired_payload = {
+        "sub": "7",
+        "role": "user",
+        "iat": int((datetime.now(UTC) - timedelta(seconds=60)).timestamp()),
+        "exp": datetime.now(UTC) - timedelta(seconds=30),
+        "type": "ws_ticket",
+    }
+    expired_ticket = jwt.encode(
+        expired_payload,
+        settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+    user_id, is_admin = await _authenticate_ws(expired_ticket)
+
+    assert user_id is None
+    assert is_admin is False
+
+
+@pytest.mark.asyncio
+async def test_authenticate_ws_rejects_tampered_ticket() -> None:
+    """Regression: a ticket with a broken signature must not authenticate."""
+    from app.modules.auth.auth_handler import create_ws_ticket
+    from app.modules.calls.ws import _authenticate_ws
+
+    ticket = create_ws_ticket(user_id=7, is_admin=False)
+    tampered = ticket[:-6] + "XXXXXX"
+    user_id, is_admin = await _authenticate_ws(tampered)
+
+    assert user_id is None
+    assert is_admin is False

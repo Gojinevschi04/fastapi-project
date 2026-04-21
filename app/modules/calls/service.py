@@ -145,10 +145,7 @@ class CallService:
 
         log_lines = await self.log_line_repository.get_by_session_id(session.id)
         if log_lines:
-            speaker_lines = [
-                ("Agent" if line.speaker.value == "agent" else "Caller", line.text)
-                for line in log_lines
-            ]
+            speaker_lines = [("Agent" if line.speaker.value == "agent" else "Caller", line.text) for line in log_lines]
             logger.info("Generating TTS for task %d with %d lines", task_id, len(speaker_lines))
             try:
                 audio = await generate_demo_conversation_mp3_async(speaker_lines)

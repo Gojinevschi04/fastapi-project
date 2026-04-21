@@ -37,10 +37,13 @@ async def test_get_current_user_valid_access_token_returns_user() -> None:
 async def test_get_current_user_expired_token_raises_401() -> None:
     user_repository = MagicMock()
 
-    with patch(
-        "app.modules.users.middleware.decode_token",
-        side_effect=jwt.ExpiredSignatureError(),
-    ), pytest.raises(HTTPException) as exc_info:
+    with (
+        patch(
+            "app.modules.users.middleware.decode_token",
+            side_effect=jwt.ExpiredSignatureError(),
+        ),
+        pytest.raises(HTTPException) as exc_info,
+    ):
         await get_current_user(
             credentials=_make_credentials("expired"),
             user_repository=user_repository,
@@ -54,10 +57,13 @@ async def test_get_current_user_expired_token_raises_401() -> None:
 async def test_get_current_user_invalid_token_raises_401() -> None:
     user_repository = MagicMock()
 
-    with patch(
-        "app.modules.users.middleware.decode_token",
-        side_effect=jwt.InvalidTokenError(),
-    ), pytest.raises(HTTPException) as exc_info:
+    with (
+        patch(
+            "app.modules.users.middleware.decode_token",
+            side_effect=jwt.InvalidTokenError(),
+        ),
+        pytest.raises(HTTPException) as exc_info,
+    ):
         await get_current_user(
             credentials=_make_credentials("invalid"),
             user_repository=user_repository,
@@ -71,10 +77,13 @@ async def test_get_current_user_invalid_token_raises_401() -> None:
 async def test_get_current_user_refresh_token_rejected() -> None:
     user_repository = MagicMock()
 
-    with patch(
-        "app.modules.users.middleware.decode_token",
-        return_value={"sub": "5", "type": "refresh"},
-    ), pytest.raises(HTTPException) as exc_info:
+    with (
+        patch(
+            "app.modules.users.middleware.decode_token",
+            return_value={"sub": "5", "type": "refresh"},
+        ),
+        pytest.raises(HTTPException) as exc_info,
+    ):
         await get_current_user(
             credentials=_make_credentials("refresh-token"),
             user_repository=user_repository,
@@ -88,10 +97,13 @@ async def test_get_current_user_refresh_token_rejected() -> None:
 async def test_get_current_user_reset_token_rejected() -> None:
     user_repository = MagicMock()
 
-    with patch(
-        "app.modules.users.middleware.decode_token",
-        return_value={"sub": "5", "type": "reset"},
-    ), pytest.raises(HTTPException) as exc_info:
+    with (
+        patch(
+            "app.modules.users.middleware.decode_token",
+            return_value={"sub": "5", "type": "reset"},
+        ),
+        pytest.raises(HTTPException) as exc_info,
+    ):
         await get_current_user(
             credentials=_make_credentials("reset-token"),
             user_repository=user_repository,
@@ -105,10 +117,13 @@ async def test_get_current_user_user_not_in_db_raises_401() -> None:
     user_repository = MagicMock()
     user_repository.get_by_id = AsyncMock(return_value=None)
 
-    with patch(
-        "app.modules.users.middleware.decode_token",
-        return_value={"sub": "999", "type": "access"},
-    ), pytest.raises(HTTPException) as exc_info:
+    with (
+        patch(
+            "app.modules.users.middleware.decode_token",
+            return_value={"sub": "999", "type": "access"},
+        ),
+        pytest.raises(HTTPException) as exc_info,
+    ):
         await get_current_user(
             credentials=_make_credentials("orphan-token"),
             user_repository=user_repository,

@@ -48,7 +48,8 @@ async def execute_due_task(task_id: int, user_id: int) -> None:
         use_realtime = settings.USE_REALTIME_API
         if use_realtime and task and task.error_reason and REALTIME_INIT_FAILED_MARKER in task.error_reason:
             logger.info(
-                "Task %d: forcing legacy path after prior realtime init failure", task_id,
+                "Task %d: forcing legacy path after prior realtime init failure",
+                task_id,
             )
             use_realtime = False
 

@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends
@@ -147,5 +148,6 @@ class UserService:
             raise ValueError("Current password is incorrect")
 
         user.hashed_password = AuthService.hash_password(data.new_password)
+        user.password_changed_at = datetime.now(UTC).replace(tzinfo=None)
         await self.user_repository.update(user)
         return True

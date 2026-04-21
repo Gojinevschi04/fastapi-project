@@ -14,13 +14,21 @@ WS_CLOSE_UNAUTHORIZED = 4001
 WS_CLOSE_FORBIDDEN = 4003
 
 
+WS_ACCEPTED_TOKEN_TYPES = {"ws_ticket", "access"}
+
+
 async def _authenticate_ws(token: str | None) -> tuple[int | None, bool]:
-    """Validate JWT token and return (user_id, is_admin), or (None, False) if invalid."""
+    """Validate JWT/ws-ticket and return (user_id, is_admin), or (None, False) if invalid.
+
+    Accepts `ws_ticket` (short-lived, 30 s, preferred) and `access` (full JWT,
+    kept for backward compat — but deprecated because access tokens in WS URLs
+    get logged in proxies / access logs).
+    """
     if not token:
         return None, False
     try:
         payload = decode_token(token)
-        if payload.get("type") != "access":
+        if payload.get("type") not in WS_ACCEPTED_TOKEN_TYPES:
             return None, False
         user_id = int(payload["sub"])
         is_admin = payload.get("role") == "admin"

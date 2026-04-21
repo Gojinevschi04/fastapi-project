@@ -15,6 +15,15 @@ from app.main import app
 from app.modules.users.middleware import get_current_admin_user, get_current_user
 from app.modules.users.models import User
 from app.modules.users.schema import UserRole
+from app.modules.webhooks.views import verify_twilio_signature
+
+
+async def _noop_twilio_signature() -> None:
+    """Bypass Twilio signature check in tests."""
+    return None
+
+
+app.dependency_overrides[verify_twilio_signature] = _noop_twilio_signature
 
 
 @pytest.fixture
@@ -77,6 +86,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
+    app.dependency_overrides[verify_twilio_signature] = _noop_twilio_signature
 
 
 @pytest_asyncio.fixture
@@ -87,6 +97,7 @@ async def authenticated_client(mock_user: User) -> AsyncGenerator[AsyncClient, N
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
+    app.dependency_overrides[verify_twilio_signature] = _noop_twilio_signature
 
 
 @pytest_asyncio.fixture
@@ -98,3 +109,4 @@ async def admin_client(mock_admin_user: User) -> AsyncGenerator[AsyncClient, Non
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
+    app.dependency_overrides[verify_twilio_signature] = _noop_twilio_signature

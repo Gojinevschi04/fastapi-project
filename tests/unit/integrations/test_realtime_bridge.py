@@ -70,11 +70,13 @@ async def test_handle_function_call_sets_outcome_and_queues_hangup() -> None:
     bridge.openai_ws = MagicMock()
     bridge.openai_ws.send = AsyncMock()
 
-    await bridge._handle_function_call({
-        "name": "report_outcome",
-        "call_id": "call-abc",
-        "arguments": json.dumps({"status": "achieved", "reason": "Info obținută."}),
-    })
+    await bridge._handle_function_call(
+        {
+            "name": "report_outcome",
+            "call_id": "call-abc",
+            "arguments": json.dumps({"status": "achieved", "reason": "Info obținută."}),
+        }
+    )
 
     assert bridge.outcome == {"status": "achieved", "reason": "Info obținută."}
     assert bridge._hangup_pending is True
@@ -92,11 +94,13 @@ async def test_handle_function_call_ignores_unknown_tool() -> None:
     bridge.openai_ws = MagicMock()
     bridge.openai_ws.send = AsyncMock()
 
-    await bridge._handle_function_call({
-        "name": "not_a_real_tool",
-        "call_id": "call-xyz",
-        "arguments": "{}",
-    })
+    await bridge._handle_function_call(
+        {
+            "name": "not_a_real_tool",
+            "call_id": "call-xyz",
+            "arguments": "{}",
+        }
+    )
 
     assert bridge.outcome is None
     bridge.openai_ws.send.assert_not_called()
@@ -108,11 +112,13 @@ async def test_handle_function_call_handles_invalid_json_arguments() -> None:
     bridge.openai_ws = MagicMock()
     bridge.openai_ws.send = AsyncMock()
 
-    await bridge._handle_function_call({
-        "name": "report_outcome",
-        "call_id": "call-1",
-        "arguments": "this is not json",
-    })
+    await bridge._handle_function_call(
+        {
+            "name": "report_outcome",
+            "call_id": "call-1",
+            "arguments": "this is not json",
+        }
+    )
 
     assert bridge.outcome == {"status": "failed", "reason": ""}
 
@@ -135,6 +141,7 @@ async def test_handle_idle_timeout_triggers_failed_outcome_after_max_nudges() ->
     bridge.openai_ws.send = AsyncMock()
 
     import websockets.protocol
+
     bridge.openai_ws.state = websockets.protocol.State.OPEN
 
     bridge._silence_nudges = MAX_SILENCE_NUDGES - 1
@@ -154,6 +161,7 @@ async def test_handle_idle_timeout_sends_nudge_when_below_max() -> None:
     bridge.openai_ws.send = AsyncMock()
 
     import websockets.protocol
+
     bridge.openai_ws.state = websockets.protocol.State.OPEN
 
     await bridge._handle_idle_timeout(timeout_seconds=0.0)
@@ -173,6 +181,7 @@ async def test_handle_idle_timeout_noops_when_ws_closed() -> None:
     bridge.openai_ws.send = AsyncMock()
 
     import websockets.protocol
+
     bridge.openai_ws.state = websockets.protocol.State.CLOSED
 
     await bridge._handle_idle_timeout(timeout_seconds=0.0)
@@ -235,14 +244,18 @@ def test_init_failed_defaults_to_false() -> None:
 def test_accumulate_token_usage_sums_across_multiple_events() -> None:
     bridge = _make_bridge()
 
-    bridge._accumulate_token_usage({
-        "input_token_details": {"audio_tokens": 100, "text_tokens": 5},
-        "output_token_details": {"audio_tokens": 200, "text_tokens": 10},
-    })
-    bridge._accumulate_token_usage({
-        "input_token_details": {"audio_tokens": 50, "text_tokens": 2},
-        "output_token_details": {"audio_tokens": 80, "text_tokens": 4},
-    })
+    bridge._accumulate_token_usage(
+        {
+            "input_token_details": {"audio_tokens": 100, "text_tokens": 5},
+            "output_token_details": {"audio_tokens": 200, "text_tokens": 10},
+        }
+    )
+    bridge._accumulate_token_usage(
+        {
+            "input_token_details": {"audio_tokens": 50, "text_tokens": 2},
+            "output_token_details": {"audio_tokens": 80, "text_tokens": 4},
+        }
+    )
 
     assert bridge.input_audio_tokens == 150
     assert bridge.input_text_tokens == 7

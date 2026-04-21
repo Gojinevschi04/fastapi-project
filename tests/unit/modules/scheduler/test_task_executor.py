@@ -30,9 +30,12 @@ async def test_execute_due_task_success_legacy_path() -> None:
     mock_manager.execute_task = AsyncMock(return_value=MagicMock(status=TaskStatus.COMPLETED))
 
     session_patch, task_repo_patch = _patch_session_and_task_repo(task_in_db)
-    with session_patch as mock_session_cls, task_repo_patch, \
-         patch("app.core.config.settings.USE_REALTIME_API", False), \
-         patch("app.integrations.call_manager.CallManager", return_value=mock_manager):
+    with (
+        session_patch as mock_session_cls,
+        task_repo_patch,
+        patch("app.core.config.settings.USE_REALTIME_API", False),
+        patch("app.integrations.call_manager.CallManager", return_value=mock_manager),
+    ):
         mock_session = AsyncMock()
         mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -52,9 +55,12 @@ async def test_execute_due_task_success_realtime_path() -> None:
     mock_manager.execute_task = AsyncMock(return_value=MagicMock(status=TaskStatus.COMPLETED))
 
     session_patch, task_repo_patch = _patch_session_and_task_repo(task_in_db)
-    with session_patch as mock_session_cls, task_repo_patch, \
-         patch("app.core.config.settings.USE_REALTIME_API", True), \
-         patch("app.integrations.realtime_call_manager.RealtimeCallManager", return_value=mock_manager):
+    with (
+        session_patch as mock_session_cls,
+        task_repo_patch,
+        patch("app.core.config.settings.USE_REALTIME_API", True),
+        patch("app.integrations.realtime_call_manager.RealtimeCallManager", return_value=mock_manager),
+    ):
         mock_session = AsyncMock()
         mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -76,10 +82,13 @@ async def test_execute_due_task_falls_back_to_legacy_when_prior_realtime_init_fa
     realtime_manager.execute_task = AsyncMock()
 
     session_patch, task_repo_patch = _patch_session_and_task_repo(task_in_db)
-    with session_patch as mock_session_cls, task_repo_patch, \
-         patch("app.core.config.settings.USE_REALTIME_API", True), \
-         patch("app.integrations.call_manager.CallManager", return_value=legacy_manager), \
-         patch("app.integrations.realtime_call_manager.RealtimeCallManager", return_value=realtime_manager):
+    with (
+        session_patch as mock_session_cls,
+        task_repo_patch,
+        patch("app.core.config.settings.USE_REALTIME_API", True),
+        patch("app.integrations.call_manager.CallManager", return_value=legacy_manager),
+        patch("app.integrations.realtime_call_manager.RealtimeCallManager", return_value=realtime_manager),
+    ):
         mock_session = AsyncMock()
         mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -100,9 +109,12 @@ async def test_execute_due_task_failure() -> None:
     mock_manager.execute_task = AsyncMock(side_effect=RuntimeError("Call failed"))
 
     session_patch, task_repo_patch = _patch_session_and_task_repo(task_in_db)
-    with session_patch as mock_session_cls, task_repo_patch, \
-         patch("app.core.config.settings.USE_REALTIME_API", False), \
-         patch("app.integrations.call_manager.CallManager", return_value=mock_manager):
+    with (
+        session_patch as mock_session_cls,
+        task_repo_patch,
+        patch("app.core.config.settings.USE_REALTIME_API", False),
+        patch("app.integrations.call_manager.CallManager", return_value=mock_manager),
+    ):
         mock_session = AsyncMock()
         mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)

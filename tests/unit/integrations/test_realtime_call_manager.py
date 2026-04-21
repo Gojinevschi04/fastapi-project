@@ -107,8 +107,12 @@ async def test_execute_task_not_found_raises() -> None:
 async def test_execute_task_wrong_status_raises() -> None:
     manager, task_repo, _, _ = _make_manager_with_mocks()
     existing_task = Task(
-        id=1, target_phone="+37360000001", status=TaskStatus.COMPLETED,
-        template_id=1, user_id=1, slot_data={},
+        id=1,
+        target_phone="+37360000001",
+        status=TaskStatus.COMPLETED,
+        template_id=1,
+        user_id=1,
+        slot_data={},
     )
     task_repo.get_by_id = AsyncMock(return_value=existing_task)
 
@@ -120,8 +124,12 @@ async def test_execute_task_wrong_status_raises() -> None:
 async def test_execute_task_template_missing_raises() -> None:
     manager, task_repo, template_repo, _ = _make_manager_with_mocks()
     existing_task = Task(
-        id=1, target_phone="+37360000001", status=TaskStatus.PENDING,
-        template_id=99, user_id=1, slot_data={},
+        id=1,
+        target_phone="+37360000001",
+        status=TaskStatus.PENDING,
+        template_id=99,
+        user_id=1,
+        slot_data={},
     )
     task_repo.get_by_id = AsyncMock(return_value=existing_task)
     template_repo.get_by_id = AsyncMock(return_value=None)
@@ -134,12 +142,20 @@ async def test_execute_task_template_missing_raises() -> None:
 async def test_execute_task_happy_path_marks_in_progress_and_initiates_call() -> None:
     manager, task_repo, template_repo, call_session_repo = _make_manager_with_mocks()
     existing_task = Task(
-        id=1, target_phone="+37360000001", status=TaskStatus.PENDING,
-        template_id=5, user_id=7, slot_data={"patient_name": "Ana"},
+        id=1,
+        target_phone="+37360000001",
+        status=TaskStatus.PENDING,
+        template_id=5,
+        user_id=7,
+        slot_data={"patient_name": "Ana"},
     )
     template = DialogTemplate(
-        id=5, name="Make appointment", base_script="Book it.",
-        required_slots=["patient_name"], language="en", is_active=True,
+        id=5,
+        name="Make appointment",
+        base_script="Book it.",
+        required_slots=["patient_name"],
+        language="en",
+        is_active=True,
     )
     task_repo.get_by_id = AsyncMock(return_value=existing_task)
     template_repo.get_by_id = AsyncMock(return_value=template)
@@ -147,8 +163,10 @@ async def test_execute_task_happy_path_marks_in_progress_and_initiates_call() ->
     manager._voice = MagicMock()
     manager._voice.initiate_call_with_twiml = AsyncMock(return_value="CA123")
 
-    with patch("app.core.config.settings.BASE_URL", "https://example.com"), \
-         patch("app.core.config.settings.TEST_PHONE_OVERRIDE", ""):
+    with (
+        patch("app.core.config.settings.BASE_URL", "https://example.com"),
+        patch("app.core.config.settings.TEST_PHONE_OVERRIDE", ""),
+    ):
         result = await manager.execute_task(task_id=1, user_id=7)
 
     assert result.status == TaskStatus.IN_PROGRESS
@@ -163,11 +181,20 @@ async def test_execute_task_happy_path_marks_in_progress_and_initiates_call() ->
 async def test_execute_task_initiate_failure_marks_task_failed() -> None:
     manager, task_repo, template_repo, _ = _make_manager_with_mocks()
     existing_task = Task(
-        id=1, target_phone="+37360000001", status=TaskStatus.PENDING,
-        template_id=5, user_id=7, slot_data={},
+        id=1,
+        target_phone="+37360000001",
+        status=TaskStatus.PENDING,
+        template_id=5,
+        user_id=7,
+        slot_data={},
     )
     template = DialogTemplate(
-        id=5, name="T", base_script="x", required_slots=[], language="en", is_active=True,
+        id=5,
+        name="T",
+        base_script="x",
+        required_slots=[],
+        language="en",
+        is_active=True,
     )
     task_repo.get_by_id = AsyncMock(return_value=existing_task)
     template_repo.get_by_id = AsyncMock(return_value=template)
@@ -186,11 +213,20 @@ async def test_execute_task_initiate_failure_marks_task_failed() -> None:
 async def test_execute_task_admin_uses_any_user_lookup() -> None:
     manager, task_repo, template_repo, _ = _make_manager_with_mocks()
     existing_task = Task(
-        id=1, target_phone="+37360000001", status=TaskStatus.PENDING,
-        template_id=5, user_id=999, slot_data={},
+        id=1,
+        target_phone="+37360000001",
+        status=TaskStatus.PENDING,
+        template_id=5,
+        user_id=999,
+        slot_data={},
     )
     template = DialogTemplate(
-        id=5, name="T", base_script="x", required_slots=[], language="en", is_active=True,
+        id=5,
+        name="T",
+        base_script="x",
+        required_slots=[],
+        language="en",
+        is_active=True,
     )
     task_repo.get_by_id_any_user = AsyncMock(return_value=existing_task)
     template_repo.get_by_id = AsyncMock(return_value=template)
@@ -210,11 +246,20 @@ async def test_execute_task_claim_races_raises_when_already_claimed() -> None:
     """Regression: if another worker claimed the task first, execute_task raises."""
     manager, task_repo, template_repo, _ = _make_manager_with_mocks()
     mock_task = Task(
-        id=1, target_phone="+37312345678", template_id=1, user_id=1,
-        slot_data={}, status=TaskStatus.PENDING,
+        id=1,
+        target_phone="+37312345678",
+        template_id=1,
+        user_id=1,
+        slot_data={},
+        status=TaskStatus.PENDING,
     )
     template = DialogTemplate(
-        id=1, name="T", base_script="test", required_slots=[], language="en", is_active=True,
+        id=1,
+        name="T",
+        base_script="test",
+        required_slots=[],
+        language="en",
+        is_active=True,
     )
     task_repo.get_by_id = AsyncMock(return_value=mock_task)
     template_repo.get_by_id = AsyncMock(return_value=template)
@@ -229,11 +274,20 @@ async def test_execute_task_calls_claim_for_execution_exactly_once() -> None:
     """Regression: happy path must invoke the atomic claim, not just .update()."""
     manager, task_repo, template_repo, _ = _make_manager_with_mocks()
     mock_task = Task(
-        id=1, target_phone="+37312345678", template_id=1, user_id=1,
-        slot_data={}, status=TaskStatus.PENDING,
+        id=1,
+        target_phone="+37312345678",
+        template_id=1,
+        user_id=1,
+        slot_data={},
+        status=TaskStatus.PENDING,
     )
     template = DialogTemplate(
-        id=1, name="T", base_script="test", required_slots=[], language="en", is_active=True,
+        id=1,
+        name="T",
+        base_script="test",
+        required_slots=[],
+        language="en",
+        is_active=True,
     )
     task_repo.get_by_id = AsyncMock(return_value=mock_task)
     template_repo.get_by_id = AsyncMock(return_value=template)

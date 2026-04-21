@@ -1,4 +1,5 @@
 import asyncio
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -6,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from app.core.logging import get_logger
 from app.core.schema import MessageResponse
 from app.core.utils import get_request_language
+from app.modules.auth.auth_handler import create_ws_ticket, decode_token
 from app.modules.auth.schema import (
     LoginRequest,
     PasswordResetConfirm,
@@ -16,6 +18,7 @@ from app.modules.auth.schema import (
 )
 from app.modules.auth.service import AuthService
 from app.modules.notifications.email_service import EmailService
+from app.modules.users.middleware import get_current_user
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schema import UserRole
@@ -80,8 +83,6 @@ async def reset_password_confirm(
     user_repository: Annotated[UserRepository, Depends(UserRepository)],
 ) -> MessageResponse:
     try:
-        from app.modules.auth.auth_handler import decode_token
-
         payload = decode_token(data.token)
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset link")
@@ -94,9 +95,33 @@ async def reset_password_confirm(
     if not user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset link")
 
+    token_issued_at = payload.get("iat")
+    if token_issued_at is not None and user.password_changed_at is not None:
+        password_changed_epoch = int(user.password_changed_at.replace(tzinfo=UTC).timestamp())
+        if token_issued_at <= password_changed_epoch:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Reset link already used. Request a new one.",
+            )
+
     user.hashed_password = AuthService.hash_password(data.new_password)
+    user.password_changed_at = datetime.now(UTC).replace(tzinfo=None)
     await user_repository.update(user)
 
     lang = get_request_language(request)
     asyncio.create_task(EmailService().send_password_changed(user.email, language=lang))
     return MessageResponse(message="Password has been reset successfully")
+
+
+@router.post("/ws-ticket")
+async def create_ws_ticket_view(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict[str, str]:
+    """Issue a 30-second single-purpose token for WebSocket authentication.
+
+    The FE calls this with its normal Bearer token, then uses the returned
+    ticket as the `?token=` parameter on the WS URL. Tickets are too
+    short-lived to be useful if leaked via proxy/server logs.
+    """
+    ticket = create_ws_ticket(current_user.id, current_user.role == UserRole.ADMIN)
+    return {"ticket": ticket}

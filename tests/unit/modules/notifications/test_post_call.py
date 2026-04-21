@@ -135,3 +135,51 @@ async def test_process_no_user_email(mock_task: Task) -> None:
 
         mock_email.send_task_success.assert_not_called()
         mock_email.send_task_failure.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_process_continues_webhook_when_email_raises(mock_task: Task) -> None:
+    """Regression: if email raises, webhook + archive still complete (gather w/ return_exceptions)."""
+    from app.modules.notifications.post_call import PostCallProcessor
+
+    mock_task.status = TaskStatus.COMPLETED
+    user = User(
+        id=1,
+        email="user@example.com",
+        role=UserRole.USER,
+        email_notifications=True,
+        webhook_url="https://hooks.example.com/x",
+    )
+
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.update = AsyncMock(return_value=mock_task)
+    mock_user_repo = MagicMock(spec=UserRepository)
+    mock_user_repo.get_by_id = AsyncMock(return_value=user)
+    mock_call_session_repo = MagicMock(spec=CallSessionRepository)
+    mock_call_session_repo.get_by_task_id = AsyncMock(return_value=None)
+    mock_log_line_repo = MagicMock(spec=LogLineRepository)
+    mock_template_repo = MagicMock(spec=TemplateRepository)
+    mock_template_repo.get_by_id = AsyncMock(return_value=None)
+
+    processor = PostCallProcessor(
+        task_repository=mock_task_repo,
+        user_repository=mock_user_repo,
+        call_session_repository=mock_call_session_repo,
+        log_line_repository=mock_log_line_repo,
+        template_repository=mock_template_repo,
+    )
+
+    webhook_mock = AsyncMock()
+    with (
+        patch(
+            "app.modules.notifications.post_call.PostCallProcessor._send_notification",
+            new=AsyncMock(side_effect=RuntimeError("SMTP down")),
+        ),
+        patch(
+            "app.modules.notifications.webhook_dispatcher.send_task_webhook",
+            new=webhook_mock,
+        ),
+    ):
+        await processor.process(mock_task)
+
+    webhook_mock.assert_awaited_once()

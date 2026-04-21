@@ -15,9 +15,7 @@ async def test_get_admin_stats(admin_client: AsyncClient) -> None:
         mock_stats.return_value = AdminStatsResponse(
             total_users=10,
             total_tasks=50,
-            tasks_by_status=TaskStatsResponse(
-                total=50, pending=5, scheduled=3, in_progress=2, completed=35, failed=5
-            ),
+            tasks_by_status=TaskStatsResponse(total=50, pending=5, scheduled=3, in_progress=2, completed=35, failed=5),
             total_calls=40,
         )
         response = await admin_client.get("/admin/stats")

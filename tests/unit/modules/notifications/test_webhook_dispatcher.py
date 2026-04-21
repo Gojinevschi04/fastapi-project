@@ -101,10 +101,13 @@ async def test_send_task_webhook_logs_on_non_2xx(mock_task: Task) -> None:
     mock_client_ctx.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client_ctx.__aexit__ = AsyncMock(return_value=None)
 
-    with patch(
-        "app.modules.notifications.webhook_dispatcher.httpx.AsyncClient",
-        return_value=mock_client_ctx,
-    ), patch("app.modules.notifications.webhook_dispatcher.logger") as mock_logger:
+    with (
+        patch(
+            "app.modules.notifications.webhook_dispatcher.httpx.AsyncClient",
+            return_value=mock_client_ctx,
+        ),
+        patch("app.modules.notifications.webhook_dispatcher.logger") as mock_logger,
+    ):
         await send_task_webhook("https://example.com/hook", mock_task)
 
     mock_logger.info.assert_called_once()

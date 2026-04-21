@@ -113,9 +113,7 @@ async def test_get_all_paginated_empty_result(mock_session: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_all_paginated_returns_tuple(
-    mock_session: MagicMock, mock_audit_entries: list[AuditLog]
-) -> None:
+async def test_get_all_paginated_returns_tuple(mock_session: MagicMock, mock_audit_entries: list[AuditLog]) -> None:
     items_result = MagicMock()
     items_result.all.return_value = mock_audit_entries
     count_result = MagicMock()
