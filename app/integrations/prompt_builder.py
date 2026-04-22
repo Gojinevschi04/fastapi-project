@@ -10,15 +10,15 @@ ON_BEHALF_KEYS = (
 )
 
 AI_DISCLOSURE_PHRASES = {
-    "en": "Hi, this is an automated assistant calling on behalf of {subject}.",
-    "ru": "Здравствуйте, это автоматический помощник, звонящий от имени {subject}.",
-    "ro": "Bună ziua, sunt un asistent automat care sună din partea lui {subject}.",
+    "en": "Hi, this is an automated assistant. I'm calling for {subject}.",
+    "ru": "Здравствуйте, это автоматический помощник. Звоню по поручению {subject}.",
+    "ro": "Bună ziua, sunt un asistent automat. Sun din partea lui {subject}.",
 }
 
 AI_DISCLOSURE_PHRASES_NAMED = {
-    "en": "Hi, this is {name}, an automated assistant calling on behalf of {subject}.",
-    "ru": "Здравствуйте, я {name}, автоматический помощник, звонящий от имени {subject}.",
-    "ro": "Bună ziua, sunt {name}, un asistent automat care sună din partea lui {subject}.",
+    "en": "Hi, this is {name}, an automated assistant. I'm calling for {subject}.",
+    "ru": "Здравствуйте, я {name}, автоматический помощник. Звоню по поручению {subject}.",
+    "ro": "Bună ziua, sunt {name}, asistent automat. Sun din partea lui {subject}.",
 }
 
 AI_SHORT_INTRO_PHRASES = {
@@ -30,13 +30,13 @@ AI_SHORT_INTRO_PHRASES = {
 AI_SHORT_INTRO_PHRASES_NAMED = {
     "en": "Hi, this is {name}, an automated assistant.",
     "ru": "Здравствуйте, я {name}, автоматический помощник.",
-    "ro": "Bună ziua, sunt {name}, un asistent automat.",
+    "ro": "Bună ziua, sunt {name}, asistent automat.",
 }
 
 EXAMPLE_OPENING_CONNECTORS = {
-    "en": "I'm calling to",
-    "ru": "Я звоню, чтобы",
-    "ro": "Sun pentru a",
+    "en": "I'm calling about",
+    "ru": "Звоню насчёт",
+    "ro": "Sun despre",
 }
 
 
@@ -90,17 +90,17 @@ class PromptBuilder:
         )
 
         on_behalf_line = (
-            f"You are placing this OUTBOUND call ON BEHALF OF the person named in the "
+            f"You are placing this OUTBOUND call FOR the person named in the "
             f"details below ({subject_name}). Refer to that person when asked who the call is for."
             if subject_name
-            else "You are placing this OUTBOUND call on behalf of the person who requested it."
+            else "You are placing this OUTBOUND call for the person who requested it."
         )
         prompt = (
             "IDENTITY: You are an automated voice assistant. You are NOT a human, "
             "NOT a receptionist, and you are NOT the person whose name appears in the "
             "details below. Do not invent a company name or brand for yourself — "
-            'if asked who you are, say only "I\'m an automated assistant calling on '
-            'behalf of <person>".\n'
+            'if asked who you are, say only "I\'m an automated assistant calling for '
+            '<person>".\n'
             f"{on_behalf_line}\n\n"
             "ROLE: You are the CALLER. You just dialed them. They picked up and said nothing yet. "
             "YOU are the one who needs something — they owe you nothing and did not request this call.\n\n"
@@ -111,10 +111,10 @@ class PromptBuilder:
         if require_ai_disclosure:
             if subject_name and named:
                 who_is_calling = (
-                    f"{assistant_name}, an automated assistant calling on behalf of {subject_name}"
+                    f"{assistant_name}, an automated assistant calling for {subject_name}"
                 )
             elif subject_name:
-                who_is_calling = f"an automated assistant calling on behalf of {subject_name}"
+                who_is_calling = f"an automated assistant calling for {subject_name}"
             elif named:
                 who_is_calling = f"{assistant_name}, an automated assistant"
             else:
@@ -151,7 +151,7 @@ class PromptBuilder:
             f'"{disclosure_phrase} {example_connector} …" '
             "(continue with the specific reason, in the same language).\n\n"
             "NEVER:\n"
-            '  - Claim to BE the person in the details — you are the ASSISTANT calling on their behalf.\n'
+            '  - Claim to BE the person in the details — you are the ASSISTANT calling for them.\n'
             '  - Say "my name is <patient_name>" or otherwise impersonate the subject. If asked your '
             + (
                 f'name, truthfully say "I\'m {assistant_name}, an automated assistant" — do NOT '

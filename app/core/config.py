@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     USE_REALTIME_API: bool = False
     OPENAI_REALTIME_MODEL: str = "gpt-realtime"
     OPENAI_REALTIME_VOICE: str = "alloy"
+    OPENAI_TRANSCRIPTION_MODEL: str = "gpt-4o-mini-transcribe"
     REALTIME_VAD_MODE: str = "semantic_vad"
     REALTIME_VAD_EAGERNESS: str = "medium"
 
@@ -56,6 +57,9 @@ class Settings(BaseSettings):
     CALL_WINDOW_END_HOUR: int = 20
     MAX_CALLS_PER_PHONE_PER_DAY: int = 3
     MAX_CALLS_PER_USER_PER_DAY: int = 20
+
+    TWILIO_VOICE_RATE_PER_MIN_USD: float = 0.30
+    TWILIO_MEDIA_STREAM_RATE_PER_MIN_USD: float = 0.004
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).parent.parent.parent / ".env",

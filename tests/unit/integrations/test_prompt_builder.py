@@ -8,7 +8,7 @@ def test_build_system_prompt_with_subject_name() -> None:
         language="en",
         use_function_tool=False,
     )
-    assert "on behalf of Ion Popescu" in prompt
+    assert "calling for Ion Popescu" in prompt
     assert "ENGLISH" in prompt.upper()
     assert "[OBJECTIVE_ACHIEVED]" in prompt
     assert "CALL the `report_outcome` tool" not in prompt
@@ -22,7 +22,7 @@ def test_build_system_prompt_falls_back_when_no_subject_name() -> None:
         slot_data={"question_topic": "working hours"},
         language="en",
     )
-    assert "on behalf of" not in prompt or "on behalf of {subject}" not in prompt
+    assert "calling for {subject}" not in prompt
     assert "automated assistant" in prompt
 
 
@@ -86,8 +86,8 @@ def test_build_system_prompt_subject_name_priority() -> None:
         slot_data=slots,
         language="en",
     )
-    assert "on behalf of First" in prompt
-    assert "on behalf of Second" not in prompt
+    assert "calling for First" in prompt
+    assert "calling for Second" not in prompt
 
 
 def test_build_system_prompt_does_not_impersonate_subject() -> None:
@@ -210,18 +210,18 @@ def test_prompt_does_not_attach_a_company_name_to_the_assistant() -> None:
     )
     assert "Quiet Call AI" not in prompt
     assert "automated assistant" in prompt
-    assert "on behalf of Eva" in prompt
+    assert "calling for Eva" in prompt
 
 
 def test_prompt_disclosure_mentions_only_subject_for_on_behalf() -> None:
-    """Regression: 'on behalf of' must reference the slot_data subject, no other name."""
+    """Regression: the 'calling for' clause must reference the slot_data subject only."""
     prompt = PromptBuilder.build_system_prompt(
         base_script="Confirm.",
         slot_data={"patient_name": "Ion Popescu", "preferred_date": "2026-05-01"},
         language="en",
     )
-    assert "on behalf of Ion Popescu" in prompt
-    assert "on behalf of Quiet Call AI" not in prompt
+    assert "calling for Ion Popescu" in prompt
+    assert "calling for Quiet Call AI" not in prompt
 
 
 def test_prompt_uses_assistant_name_when_set() -> None:
@@ -232,7 +232,7 @@ def test_prompt_uses_assistant_name_when_set() -> None:
         language="en",
         assistant_name="Ana",
     )
-    assert "Hi, this is Ana, an automated assistant calling on behalf of Eva." in prompt
+    assert "Hi, this is Ana, an automated assistant. I'm calling for Eva." in prompt
 
 
 def test_prompt_uses_assistant_name_in_romanian() -> None:
@@ -242,7 +242,7 @@ def test_prompt_uses_assistant_name_in_romanian() -> None:
         language="ro",
         assistant_name="Maria",
     )
-    assert "Bună ziua, sunt Maria, un asistent automat care sună din partea lui Eva Popescu." in prompt
+    assert "Bună ziua, sunt Maria, asistent automat. Sun din partea lui Eva Popescu." in prompt
 
 
 def test_prompt_falls_back_to_neutral_when_assistant_name_is_none() -> None:
@@ -252,7 +252,7 @@ def test_prompt_falls_back_to_neutral_when_assistant_name_is_none() -> None:
         language="en",
         assistant_name=None,
     )
-    assert "Hi, this is an automated assistant calling on behalf of Eva." in prompt
+    assert "Hi, this is an automated assistant. I'm calling for Eva." in prompt
     assert "Hi, this is None," not in prompt
 
 

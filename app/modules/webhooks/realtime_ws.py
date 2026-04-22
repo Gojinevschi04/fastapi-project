@@ -197,7 +197,8 @@ async def _finalize_call(bridge: RealtimeBridge) -> None:
 
         call_session = await call_session_repo.get_by_task_id(bridge.task_id)
 
-        if bridge.transcript_buffer and call_session:
+        ordered_transcript = bridge.get_ordered_transcript()
+        if ordered_transcript and call_session:
             log_lines = [
                 LogLine(
                     session_id=call_session.id,
@@ -205,7 +206,7 @@ async def _finalize_call(bridge: RealtimeBridge) -> None:
                     speaker=entry["speaker"],
                     text=entry["text"],
                 )
-                for entry in bridge.transcript_buffer
+                for entry in ordered_transcript
             ]
             await log_line_repo.create_many(log_lines)
 
@@ -225,11 +226,11 @@ async def _finalize_call(bridge: RealtimeBridge) -> None:
             await call_session_repo.update(call_session)
 
         outcome = bridge.outcome
-        if not outcome and bridge.transcript_buffer and task:
+        if not outcome and ordered_transcript and task:
             template = await template_repo.get_by_id(task.template_id)
             objective = template.base_script if template else ""
             outcome = await _classify_outcome_from_transcript(
-                bridge.transcript_buffer,
+                ordered_transcript,
                 bridge.language,
                 objective,
             )
@@ -248,7 +249,7 @@ async def _finalize_call(bridge: RealtimeBridge) -> None:
         if bridge.init_failed:
             task.error_reason = f"[REALTIME_INIT_FAILED] {task.error_reason or 'OpenAI Realtime connection failed'}"
 
-        task.summary = await _generate_llm_summary(bridge.transcript_buffer, bridge.language)
+        task.summary = await _generate_llm_summary(ordered_transcript, bridge.language)
         await task_repo.update(task)
 
         if call_broadcaster.has_listeners(bridge.task_id):

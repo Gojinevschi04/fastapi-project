@@ -25,8 +25,15 @@ logger = get_logger(__name__)
 
 OPENAI_REALTIME_URL = "wss://api.openai.com/v1/realtime?model={model}"
 
-IDLE_TIMEOUT_SECONDS = 10.0
+IDLE_TIMEOUT_SECONDS = 15.0
+FIRST_TURN_IDLE_TIMEOUT_SECONDS = 20.0
 MAX_SILENCE_NUDGES = 3
+
+FAREWELL_MARKERS = {
+    "en": ("goodbye", "bye for now", "good day", "great day", "farewell", "take care", "have a nice"),
+    "ru": ("до свидания", "всего доброго", "до связи", "всего хорошего", "хорошего дня"),
+    "ro": ("la revedere", "o zi bună", "o zi plăcută", "pe curând", "cu bine", "o seară bună"),
+}
 HANGUP_DRAIN_TIMEOUT_SECONDS = 15.0
 HANGUP_POST_DRAIN_BUFFER_SECONDS = 1.0
 HANGUP_BACKUP_TIMEOUT_SECONDS = 30.0
@@ -112,6 +119,11 @@ class RealtimeBridge:
 
         self._idle_timer: asyncio.Task | None = None
         self._silence_nudges: int = 0
+        self._assistant_turns: int = 0
+        self._last_agent_text: str = ""
+
+        self._item_order: list[str] = []
+        self._item_records: dict[str, dict[str, Any]] = {}
 
         self._duration_timer: asyncio.Task | None = None
 
@@ -205,7 +217,10 @@ class RealtimeBridge:
                     "input": {
                         "format": {"type": "audio/pcmu"},
                         "turn_detection": turn_detection,
-                        "transcription": {"model": "whisper-1"},
+                        "transcription": {
+                            "model": settings.OPENAI_TRANSCRIPTION_MODEL,
+                            "language": self.language,
+                        },
                     },
                     "output": {
                         "format": {"type": "audio/pcmu"},
@@ -302,12 +317,20 @@ class RealtimeBridge:
                 elif event_type == "response.output_audio_transcript.delta":
                     self._current_agent_text += event.get("delta", "")
 
+                elif event_type == "conversation.item.created":
+                    created_item = event.get("item", {}) or {}
+                    created_item_id = created_item.get("id")
+                    if created_item_id and created_item_id not in self._item_order:
+                        self._item_order.append(created_item_id)
+
                 elif event_type == "response.output_audio_transcript.done":
                     agent_text = (event.get("transcript") or self._current_agent_text).strip()
                     if agent_text:
-                        self._record_transcript(Speaker.AGENT, agent_text)
+                        agent_item_id = event.get("item_id") or self.last_assistant_item_id
+                        self._record_transcript(Speaker.AGENT, agent_text, item_id=agent_item_id)
                         await self._emit("message", {"speaker": "agent", "text": agent_text})
                         logger.info("[task=%d] AGENT: %s", self.task_id, agent_text[:TRANSCRIPT_LOG_MAX_CHARS])
+                        self._last_agent_text = agent_text
                     self._current_agent_text = ""
 
                 elif event_type == "conversation.item.input_audio_transcription.delta":
@@ -316,7 +339,8 @@ class RealtimeBridge:
                 elif event_type == "conversation.item.input_audio_transcription.completed":
                     user_text = (event.get("transcript") or self._current_user_text).strip()
                     if user_text:
-                        self._record_transcript(Speaker.INTERLOCUTOR, user_text)
+                        user_item_id = event.get("item_id")
+                        self._record_transcript(Speaker.INTERLOCUTOR, user_text, item_id=user_item_id)
                         await self._emit("message", {"speaker": "interlocutor", "text": user_text})
                         logger.info("[task=%d] USER: %s", self.task_id, user_text[:TRANSCRIPT_LOG_MAX_CHARS])
                     self._current_user_text = ""
@@ -363,7 +387,13 @@ class RealtimeBridge:
                         logger.info("[task=%d] Farewell audio sent, scheduling hangup", self.task_id)
                         asyncio.create_task(self._hangup_after_drain())
                     else:
-                        self._start_idle_timer()
+                        self._assistant_turns += 1
+                        timeout = (
+                            FIRST_TURN_IDLE_TIMEOUT_SECONDS
+                            if self._assistant_turns == 1
+                            else IDLE_TIMEOUT_SECONDS
+                        )
+                        self._start_idle_timer(timeout)
 
         except Exception:
             logger.exception("[task=%d] OpenAI→Twilio loop failed", self.task_id)
@@ -472,6 +502,13 @@ class RealtimeBridge:
             )
             self._hangup_pending = True
             self._schedule_backup_hangup()
+            if self._already_said_farewell():
+                logger.info(
+                    "[task=%d] Last agent line already contained a farewell; skipping forced goodbye",
+                    self.task_id,
+                )
+                asyncio.create_task(self._hangup_after_drain())
+                return
             lang_name = LANG_DISPLAY_NAMES.get(self.language, "English")
             await self.openai_ws.send(
                 json.dumps(
@@ -489,6 +526,13 @@ class RealtimeBridge:
                 )
             )
             logger.info("[task=%d] Triggered farewell response; hangup queued", self.task_id)
+
+    def _already_said_farewell(self) -> bool:
+        if not self._last_agent_text:
+            return False
+        last_lower = self._last_agent_text.lower()
+        markers = FAREWELL_MARKERS.get(self.language, FAREWELL_MARKERS["en"])
+        return any(marker in last_lower for marker in markers)
 
     def _start_idle_timer(self, timeout_seconds: float = IDLE_TIMEOUT_SECONDS) -> None:
         self._cancel_idle_timer()
@@ -671,14 +715,37 @@ class RealtimeBridge:
         self.output_audio_tokens += int(output_details.get("audio_tokens") or 0)
         self.output_text_tokens += int(output_details.get("text_tokens") or 0)
 
-    def _record_transcript(self, speaker: Speaker, text: str) -> None:
-        self.transcript_buffer.append(
-            {
-                "speaker": speaker,
-                "text": text,
-                "timestamp": datetime.now(),
-            }
-        )
+    def _record_transcript(self, speaker: Speaker, text: str, item_id: str | None = None) -> None:
+        entry = {
+            "speaker": speaker,
+            "text": text,
+            "timestamp": datetime.now(),
+        }
+        self.transcript_buffer.append(entry)
+        if item_id:
+            self._item_records[item_id] = entry
+
+    def get_ordered_transcript(self) -> list[dict[str, Any]]:
+        """Return transcript entries in conversation-item creation order.
+
+        Events from OpenAI arrive asynchronously — user transcription (via Whisper) can
+        complete AFTER the agent's response transcript for the next turn. Using
+        conversation.item.created order reconstructs the real back-and-forth order.
+        """
+        if not self._item_order:
+            return list(self.transcript_buffer)
+        ordered: list[dict[str, Any]] = []
+        seen_entries: set[int] = set()
+        for item_id in self._item_order:
+            entry = self._item_records.get(item_id)
+            if entry is None:
+                continue
+            ordered.append(entry)
+            seen_entries.add(id(entry))
+        for entry in self.transcript_buffer:
+            if id(entry) not in seen_entries:
+                ordered.append(entry)
+        return ordered
 
     async def _emit(self, event: str, data: dict[str, Any] | None = None) -> None:
         if call_broadcaster.has_listeners(self.task_id):
