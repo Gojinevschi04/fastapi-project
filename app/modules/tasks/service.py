@@ -94,8 +94,9 @@ class TaskService:
         limit: int = 20,
         offset: int = 0,
         status: TaskStatus | None = None,
+        language: str | None = None,
     ) -> tuple[Sequence[Task], int]:
-        return await self.task_repository.get_all_paginated(user_id, limit, offset, status)
+        return await self.task_repository.get_all_paginated(user_id, limit, offset, status, language)
 
     async def edit_task(self, task_id: int, user_id: int, data: TaskEditRequest, is_admin: bool = False) -> Task:
         if is_admin:
@@ -154,8 +155,10 @@ class TaskService:
         if not task:
             raise TaskNotFoundError(f"Task with id {task_id} not found")
 
-        if task.status != TaskStatus.FAILED:
-            raise InvalidTaskDataError(f"Only failed tasks can be retried (current status: {task.status})")
+        if task.status not in (TaskStatus.FAILED, TaskStatus.DEFERRED):
+            raise InvalidTaskDataError(
+                f"Only failed or deferred tasks can be retried (current status: {task.status})"
+            )
 
         await self._cleanup_old_call_session(task_id)
 
@@ -193,8 +196,10 @@ class TaskService:
         if not task:
             raise TaskNotFoundError(f"Task with id {task_id} not found")
 
-        if task.status not in (TaskStatus.COMPLETED, TaskStatus.FAILED):
-            raise InvalidTaskDataError(f"Only completed or failed tasks can be rated (current status: {task.status})")
+        if task.status not in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.DEFERRED):
+            raise InvalidTaskDataError(
+                f"Only completed, failed, or deferred tasks can be rated (current status: {task.status})"
+            )
 
         task.user_rating = rating
         task.user_rating_comment = comment
@@ -209,4 +214,5 @@ class TaskService:
             in_progress=counts.get(TaskStatus.IN_PROGRESS, 0),
             completed=counts.get(TaskStatus.COMPLETED, 0),
             failed=counts.get(TaskStatus.FAILED, 0),
+            deferred=counts.get(TaskStatus.DEFERRED, 0),
         )

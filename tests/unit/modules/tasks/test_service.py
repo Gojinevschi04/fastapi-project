@@ -180,7 +180,7 @@ async def test_get_tasks_paginated(mock_task: Task) -> None:
 
     assert len(tasks) == 1
     assert total == 1
-    mock_task_repo.get_all_paginated.assert_called_once_with(1, 20, 0, None)
+    mock_task_repo.get_all_paginated.assert_called_once_with(1, 20, 0, None, None)
 
 
 @pytest.mark.asyncio
@@ -193,7 +193,7 @@ async def test_get_tasks_with_status_filter(mock_task: Task) -> None:
     tasks, total = await service.get_tasks(user_id=1, limit=10, offset=0, status=TaskStatus.PENDING)
 
     assert len(tasks) == 1
-    mock_task_repo.get_all_paginated.assert_called_once_with(1, 10, 0, TaskStatus.PENDING)
+    mock_task_repo.get_all_paginated.assert_called_once_with(1, 10, 0, TaskStatus.PENDING, None)
 
 
 @pytest.mark.asyncio
@@ -489,7 +489,7 @@ async def test_retry_task_not_failed_raises(mock_task: Task) -> None:
 
     service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
 
-    with pytest.raises(InvalidTaskDataError, match="Only failed tasks"):
+    with pytest.raises(InvalidTaskDataError, match="Only failed or deferred tasks"):
         await service.retry_task(task_id=1, user_id=1)
 
 
@@ -630,7 +630,7 @@ async def test_rate_task_rejects_pending_status(mock_task: Task) -> None:
 
     service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
 
-    with pytest.raises(InvalidTaskDataError, match="completed or failed"):
+    with pytest.raises(InvalidTaskDataError, match="completed, failed, or deferred"):
         await service.rate_task(task_id=1, user_id=1, rating=5, comment=None)
 
 
@@ -718,3 +718,89 @@ async def test_create_task_rejects_deactivated_template(mock_template: DialogTem
 
     with pytest.raises(TemplateNotFoundError, match="deactivated"):
         await service.create_task(data, user_id=1)
+
+
+@pytest.mark.asyncio
+async def test_retry_task_allows_deferred_status(mock_task: Task) -> None:
+    """DEFERRED tasks are retryable — productive call but needs follow-up."""
+    mock_task.status = TaskStatus.DEFERRED
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=mock_task)
+    mock_task_repo.update = AsyncMock(return_value=mock_task)
+    mock_task_repo._session = AsyncMock()
+    mock_template_repo = MagicMock(spec=TemplateRepository)
+
+    service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
+    # Bypass the _cleanup_old_call_session DB ops
+    with patch.object(service, "_cleanup_old_call_session", new=AsyncMock()):
+        result = await service.retry_task(task_id=1, user_id=1)
+
+    assert result.status == TaskStatus.PENDING  # DEFERRED → PENDING for re-execution
+
+
+@pytest.mark.asyncio
+async def test_rate_task_allows_deferred_status(mock_task: Task) -> None:
+    """DEFERRED tasks can be rated — user had a productive call, can give feedback."""
+    mock_task.status = TaskStatus.DEFERRED
+    mock_task_repo = MagicMock(spec=TaskRepository)
+    mock_task_repo.get_by_id = AsyncMock(return_value=mock_task)
+    mock_task_repo.update = AsyncMock(return_value=mock_task)
+    mock_template_repo = MagicMock(spec=TemplateRepository)
+
+    service = TaskService(task_repository=mock_task_repo, template_repository=mock_template_repo)
+    result = await service.rate_task(task_id=1, user_id=1, rating=4, comment="Will call back")
+
+    assert result.user_rating == 4
+    assert result.user_rating_comment == "Will call back"
+
+
+def test_task_response_serializes_naive_datetime_with_z_suffix() -> None:
+    """Regression: TaskResponse must emit naive datetimes as UTC ISO with 'Z' so that
+    browser `new Date(...)` parses them as UTC and renders in local time correctly."""
+    from app.modules.tasks.schema import TaskResponse
+
+    naive_scheduled = datetime(2026, 4, 23, 8, 38, 0)
+    naive_created = datetime(2026, 4, 23, 5, 0, 0)
+    response = TaskResponse(
+        id=1,
+        target_phone="+37312345678",
+        status=TaskStatus.SCHEDULED,
+        template_id=1,
+        slot_data={},
+        scheduled_time=naive_scheduled,
+        summary=None,
+        error_reason=None,
+        created_at=naive_created,
+        updated_at=naive_created,
+    )
+    payload = response.model_dump(mode="json")
+    assert payload["scheduled_time"].endswith("Z")
+    assert "2026-04-23T08:38:00" in payload["scheduled_time"]
+    assert payload["created_at"].endswith("Z")
+
+
+def test_to_naive_utc_strips_tz_and_converts_to_utc() -> None:
+    """Helper that normalizes TZ-aware inputs before naive comparison with datetime.now()."""
+    from datetime import timezone as tz
+
+    from app.modules.tasks.schema import _to_naive_utc
+
+    # TZ-aware input (e.g. JS sent "Z" suffix → parsed as UTC)
+    aware = datetime(2026, 4, 23, 11, 38, tzinfo=tz(timedelta(hours=3)))  # 11:38 +03
+    result = _to_naive_utc(aware)
+    assert result.tzinfo is None
+    assert result.hour == 8  # 11:38 +03 → 08:38 UTC
+
+    # Naive input stays naive
+    naive = datetime(2026, 4, 23, 11, 38)
+    assert _to_naive_utc(naive) == naive
+
+
+def test_local_hour_returns_hour_in_business_timezone() -> None:
+    """Call-window validation uses local hour (Europe/Chisinau default), not UTC."""
+    from app.modules.tasks.schema import _local_hour
+
+    # 08:30 UTC = 11:30 EEST (Moldova summer time, UTC+3)
+    naive_utc = datetime(2026, 4, 23, 8, 30, 0)
+    # Business hours are checked in local TZ
+    assert _local_hour(naive_utc) == 11

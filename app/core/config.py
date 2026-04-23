@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     MAX_CALL_DURATION_SECONDS: int = 300
     CALL_WINDOW_START_HOUR: int = 9
     CALL_WINDOW_END_HOUR: int = 20
+    # Timezone for interpreting call window hours. Stored times are UTC naive, but
+    # business hours are checked in this local TZ. Default: Moldova (EET/EEST).
+    CALL_WINDOW_TIMEZONE: str = "Europe/Chisinau"
     MAX_CALLS_PER_PHONE_PER_DAY: int = 3
     MAX_CALLS_PER_USER_PER_DAY: int = 20
 

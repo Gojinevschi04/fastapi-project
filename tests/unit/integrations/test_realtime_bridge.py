@@ -32,7 +32,7 @@ def test_report_outcome_tool_schema_is_valid() -> None:
     assert REPORT_OUTCOME_TOOL["name"] == "report_outcome"
     params = REPORT_OUTCOME_TOOL["parameters"]
     assert set(params["required"]) == {"status", "reason"}
-    assert set(params["properties"]["status"]["enum"]) == {"achieved", "failed", "rejected"}
+    assert set(params["properties"]["status"]["enum"]) == {"achieved", "deferred", "failed", "rejected"}
 
 
 def test_lang_display_names_covers_all_supported_languages() -> None:

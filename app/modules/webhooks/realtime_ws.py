@@ -34,7 +34,7 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["realtime"])
 
 SUMMARY_FALLBACK_MAX_CHARS = 500
-VALID_OUTCOME_STATUSES = ("achieved", "failed", "rejected")
+VALID_OUTCOME_STATUSES = ("achieved", "deferred", "failed", "rejected")
 
 
 @router.websocket("/ws/media-stream")
@@ -56,21 +56,23 @@ async def media_stream(websocket: WebSocket) -> None:
     language = params["language"]
     start_event = params["start_event"]
 
-    system_prompt = await _build_system_prompt_for_task(task_id, language)
-    if system_prompt is None:
+    prompt_result = await _build_system_prompt_for_task(task_id, language)
+    if prompt_result is None:
         logger.error("[task=%d] Cannot build system prompt (task or template missing)", task_id)
         await websocket.close()
         return
+    system_prompt, transcription_hint = prompt_result
 
     stream_sid = start_event.get("start", {}).get("streamSid")
     call_sid = start_event.get("start", {}).get("callSid")
     logger.info(
-        "[task=%d] WS start event parsed: stream_sid=%s call_sid=%s lang=%s prompt_len=%d",
+        "[task=%d] WS start event parsed: stream_sid=%s call_sid=%s lang=%s prompt_len=%d hint_len=%d",
         task_id,
         stream_sid,
         call_sid,
         language,
         len(system_prompt),
+        len(transcription_hint),
     )
 
     bridge = RealtimeBridge(
@@ -79,6 +81,7 @@ async def media_stream(websocket: WebSocket) -> None:
         user_id=user_id,
         language=language,
         system_prompt=system_prompt,
+        transcription_hint=transcription_hint,
     )
     bridge.stream_sid = stream_sid
     bridge.call_sid = call_sid
@@ -96,12 +99,37 @@ async def media_stream(websocket: WebSocket) -> None:
         logger.info("[task=%d] Call finalized", task_id)
 
 
-async def _build_system_prompt_for_task(task_id: int, language: str) -> str | None:
-    """Rebuild the system prompt server-side from the DB.
+TRANSCRIPTION_HINT_MAX_CHARS = 500
+
+
+def _build_transcription_hint(slot_data: dict[str, str], assistant_name: str | None) -> str:
+    """Build a Whisper/gpt-4o-transcribe prompt hint from proper nouns and values
+    that are likely to appear in the caller's reply (names, dates, services).
+
+    Improves STT accuracy on short/noisy user utterances by biasing the transcriber
+    toward words already present in the task context.
+    """
+    fragments: list[str] = []
+    if assistant_name:
+        fragments.append(assistant_name)
+    for value in slot_data.values():
+        if isinstance(value, str) and value.strip():
+            fragments.append(value.strip())
+    if not fragments:
+        return ""
+    hint = ", ".join(fragments)
+    return hint[:TRANSCRIPTION_HINT_MAX_CHARS]
+
+
+async def _build_system_prompt_for_task(
+    task_id: int, language: str
+) -> tuple[str, str] | None:
+    """Rebuild system prompt + transcription hint server-side from the DB.
 
     The prompt is too long to fit in TwiML <Parameter> (Twilio caps TwiML at 4000
     chars), so we pass only task_id via TwiML and reconstruct the prompt here.
-    Returns None if the task or template cannot be loaded.
+    Returns None if the task or template cannot be loaded; otherwise a tuple of
+    (system_prompt, transcription_hint).
     """
     async with async_session() as session:
         task_repo = TaskRepository(session=session)
@@ -130,7 +158,7 @@ async def _build_system_prompt_for_task(task_id: int, language: str) -> str | No
                 ]
                 prior_context = "\n".join(formatted_lines[-20:])
 
-        return PromptBuilder.build_system_prompt(
+        system_prompt = PromptBuilder.build_system_prompt(
             template.base_script,
             task.slot_data,
             language,
@@ -139,6 +167,8 @@ async def _build_system_prompt_for_task(task_id: int, language: str) -> str | No
             prior_attempt_context=prior_context,
             assistant_name=assistant_name,
         )
+        transcription_hint = _build_transcription_hint(task.slot_data, assistant_name)
+        return system_prompt, transcription_hint
 
 
 async def _wait_for_start(websocket: WebSocket) -> dict[str, Any] | None:
@@ -239,8 +269,13 @@ async def _finalize_call(bridge: RealtimeBridge) -> None:
 
         if outcome:
             status_str = outcome.get("status", "failed")
-            task.status = TaskStatus.COMPLETED if status_str == "achieved" else TaskStatus.FAILED
-            if task.status == TaskStatus.FAILED:
+            if status_str == "achieved":
+                task.status = TaskStatus.COMPLETED
+            elif status_str == "deferred":
+                task.status = TaskStatus.DEFERRED
+                task.error_reason = outcome.get("reason") or "Follow-up needed — objective not achievable this call"
+            else:
+                task.status = TaskStatus.FAILED
                 task.error_reason = outcome.get("reason") or "Objective not achieved"
         else:
             task.status = TaskStatus.FAILED
@@ -290,10 +325,17 @@ async def _classify_outcome_from_transcript(
 
     system_prompt = (
         "You are an evaluator. Given a phone call transcript and the caller's objective, "
-        "decide if the objective was achieved. Respond with a SINGLE JSON object, no prose, "
-        "with keys 'status' (one of: achieved, failed, rejected) and 'reason' "
-        f"(one short sentence in {language})."
-    )
+        "decide the outcome. Respond with a SINGLE JSON object, no prose, "
+        "with keys 'status' and 'reason' (one short sentence in {language}).\n"
+        "'status' must be one of:\n"
+        "  - 'achieved': the objective was fully met (booking confirmed, info obtained, etc.)\n"
+        "  - 'deferred': the conversation was productive but the objective was NOT met and needs "
+        "a follow-up (e.g., no slots this week — told to call back, record exists but only an "
+        "alternative time was offered, partner will get back to the caller).\n"
+        "  - 'failed': hard failure (wrong number, record not found, voicemail, unintelligible, "
+        "technical error).\n"
+        "  - 'rejected': the other party refused explicitly (opt-out, remove from list)."
+    ).format(language=language)
     user_message = f"OBJECTIVE:\n{objective}\n\nTRANSCRIPT:\n{conversation_text}"
 
     try:

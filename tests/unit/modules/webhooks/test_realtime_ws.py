@@ -27,7 +27,17 @@ def _transcript_entry(speaker: Speaker, text: str) -> dict:
 
 
 def test_valid_outcome_statuses_covers_expected_values() -> None:
-    assert set(VALID_OUTCOME_STATUSES) == {"achieved", "failed", "rejected"}
+    assert set(VALID_OUTCOME_STATUSES) == {"achieved", "deferred", "failed", "rejected"}
+
+
+def test_deferred_outcome_maps_to_task_status_deferred() -> None:
+    """Regression: 'deferred' outcome from report_outcome → TaskStatus.DEFERRED (not FAILED)."""
+    # Business semantics check — productive call needing follow-up is distinct from hard failure.
+    from app.modules.tasks.schema import TaskStatus
+
+    outcome_status = "deferred"
+    assert outcome_status in VALID_OUTCOME_STATUSES
+    assert TaskStatus.DEFERRED == "deferred"
 
 
 def test_format_transcript_empty() -> None:

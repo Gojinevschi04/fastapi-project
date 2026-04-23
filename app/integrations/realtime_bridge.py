@@ -37,6 +37,10 @@ FAREWELL_MARKERS = {
 HANGUP_DRAIN_TIMEOUT_SECONDS = 15.0
 HANGUP_POST_DRAIN_BUFFER_SECONDS = 1.0
 HANGUP_BACKUP_TIMEOUT_SECONDS = 30.0
+# After farewell audio drains, keep the WS open a bit longer so Whisper can
+# finish transcribing any user reply that arrived during the farewell (e.g. "la revedere").
+PENDING_TRANSCRIPTION_WAIT_SECONDS = 4.0
+PENDING_TRANSCRIPTION_POLL_INTERVAL_SECONDS = 0.2
 MARK_DRAIN_POLL_INTERVAL_SECONDS = 0.2
 AUDIO_CHUNK_LOG_THRESHOLDS = (1, 50, 250, 500)
 TRANSCRIPT_LOG_MAX_CHARS = 200
@@ -66,13 +70,22 @@ REPORT_OUTCOME_TOOL = {
     "name": "report_outcome",
     "description": (
         "Call this EXACTLY ONCE when the conversation objective is resolved, BEFORE saying goodbye. "
-        "Use status='achieved' if the goal was met, 'failed' if it clearly cannot be met, "
-        "'rejected' if the other party refused."
+        "Use status='achieved' if the goal was met. "
+        "Use status='deferred' if the conversation was productive but the objective could not be met "
+        "right now and a follow-up is needed (e.g., no slots available — told to call back later, "
+        "record exists but only an alternative slot was offered, partner will call back). "
+        "Use status='failed' for hard failures (wrong number, record not found, unintelligible audio, "
+        "voicemail, technical error). "
+        "Use status='rejected' if the other party explicitly refused (opt-out, remove-from-list, "
+        "does not want to engage)."
     ),
     "parameters": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["achieved", "failed", "rejected"]},
+            "status": {
+                "type": "string",
+                "enum": ["achieved", "deferred", "failed", "rejected"],
+            },
             "reason": {"type": "string", "description": "One-sentence rationale"},
         },
         "required": ["status", "reason"],
@@ -88,12 +101,14 @@ class RealtimeBridge:
         user_id: int,
         language: str,
         system_prompt: str,
+        transcription_hint: str = "",
     ) -> None:
         self.twilio_ws = twilio_ws
         self.task_id = task_id
         self.user_id = user_id
         self.language = language
         self.system_prompt = system_prompt
+        self.transcription_hint = transcription_hint
 
         self.openai_ws: websockets.WebSocketClientProtocol | None = None
         self.stream_sid: str | None = None
@@ -124,6 +139,7 @@ class RealtimeBridge:
 
         self._item_order: list[str] = []
         self._item_records: dict[str, dict[str, Any]] = {}
+        self._pending_user_items: set[str] = set()
 
         self._duration_timer: asyncio.Task | None = None
 
@@ -220,6 +236,11 @@ class RealtimeBridge:
                         "transcription": {
                             "model": settings.OPENAI_TRANSCRIPTION_MODEL,
                             "language": self.language,
+                            **(
+                                {"prompt": self.transcription_hint}
+                                if self.transcription_hint
+                                else {}
+                            ),
                         },
                     },
                     "output": {
@@ -322,6 +343,10 @@ class RealtimeBridge:
                     created_item_id = created_item.get("id")
                     if created_item_id and created_item_id not in self._item_order:
                         self._item_order.append(created_item_id)
+                        # Track user items so we can wait for Whisper transcription
+                        # before hanging up (captures a last "goodbye" from the caller).
+                        if created_item.get("role") == "user":
+                            self._pending_user_items.add(created_item_id)
 
                 elif event_type == "response.output_audio_transcript.done":
                     agent_text = (event.get("transcript") or self._current_agent_text).strip()
@@ -338,12 +363,14 @@ class RealtimeBridge:
 
                 elif event_type == "conversation.item.input_audio_transcription.completed":
                     user_text = (event.get("transcript") or self._current_user_text).strip()
+                    user_item_id = event.get("item_id")
                     if user_text:
-                        user_item_id = event.get("item_id")
                         self._record_transcript(Speaker.INTERLOCUTOR, user_text, item_id=user_item_id)
                         await self._emit("message", {"speaker": "interlocutor", "text": user_text})
                         logger.info("[task=%d] USER: %s", self.task_id, user_text[:TRANSCRIPT_LOG_MAX_CHARS])
                     self._current_user_text = ""
+                    if user_item_id:
+                        self._pending_user_items.discard(user_item_id)
 
                 elif event_type == "input_audio_buffer.speech_started":
                     logger.debug("[task=%d] User speech started (possible barge-in)", self.task_id)
@@ -656,12 +683,26 @@ class RealtimeBridge:
         )
 
     async def _hangup_after_drain(self) -> None:
-        """Wait for Twilio's audio buffer to drain (marks to clear), then hang up the call."""
+        """Wait for Twilio's audio buffer to drain, then wait briefly for any user
+        reply transcription (e.g. "la revedere") to complete, then hang up.
+        """
         loop = asyncio.get_event_loop()
-        deadline = loop.time() + HANGUP_DRAIN_TIMEOUT_SECONDS
-        while self.mark_queue and loop.time() < deadline:  # noqa: ASYNC110
+        drain_deadline = loop.time() + HANGUP_DRAIN_TIMEOUT_SECONDS
+        while self.mark_queue and loop.time() < drain_deadline:  # noqa: ASYNC110
             await asyncio.sleep(MARK_DRAIN_POLL_INTERVAL_SECONDS)
         await asyncio.sleep(HANGUP_POST_DRAIN_BUFFER_SECONDS)
+
+        if self._pending_user_items:
+            transcription_deadline = loop.time() + PENDING_TRANSCRIPTION_WAIT_SECONDS
+            logger.info(
+                "[task=%d] Hangup waiting up to %ss for %d pending user transcription(s)",
+                self.task_id,
+                PENDING_TRANSCRIPTION_WAIT_SECONDS,
+                len(self._pending_user_items),
+            )
+            while self._pending_user_items and loop.time() < transcription_deadline:  # noqa: ASYNC110
+                await asyncio.sleep(PENDING_TRANSCRIPTION_POLL_INTERVAL_SECONDS)
+
         await self._force_hangup(source="drain")
 
     async def _force_hangup(self, source: str) -> None:

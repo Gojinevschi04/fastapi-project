@@ -1,12 +1,32 @@
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import StrEnum
+from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_serializer, field_validator
 
 from app.core.constants import MAX_SLOT_COUNT, MAX_SLOT_KEY_LENGTH, MAX_SLOT_VALUE_LENGTH
 
 MAX_SCHEDULED_DAYS_IN_FUTURE = 90
+
+
+def _to_naive_utc(value: datetime) -> datetime:
+    """Normalize an incoming datetime to a naive UTC datetime so it can be compared
+    with `datetime.now()` (server runs in UTC in Docker) and stored by Postgres as
+    TIMESTAMP WITHOUT TIME ZONE. Naive inputs are assumed to already be in UTC."""
+    if value.tzinfo is not None:
+        value = value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
+
+
+def _local_hour(value: datetime) -> int:
+    """Return the hour of `value` in the business-hours timezone.
+    `value` is treated as naive UTC; the result is the hour-of-day in the local TZ."""
+    from app.core.config import settings
+
+    tz = ZoneInfo(settings.CALL_WINDOW_TIMEZONE)
+    utc_aware = value.replace(tzinfo=timezone.utc)
+    return utc_aware.astimezone(tz).hour
 
 
 class TaskStatus(StrEnum):
@@ -15,6 +35,7 @@ class TaskStatus(StrEnum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"
+    DEFERRED = "deferred"  # productive call, objective not met this time, follow-up needed
 
 
 PHONE_REGEX = re.compile(r"^\+?[1-9]\d{7,14}$")
@@ -78,6 +99,7 @@ class TaskBase(BaseModel):
     def validate_scheduled_time(cls, v: datetime | None) -> datetime | None:
         if v is None:
             return v
+        v = _to_naive_utc(v)
         now = datetime.now()
         if v <= now:
             raise ValueError("Scheduled time must be in the future")
@@ -87,7 +109,7 @@ class TaskBase(BaseModel):
             )
         from app.core.config import settings
 
-        if not (settings.CALL_WINDOW_START_HOUR <= v.hour < settings.CALL_WINDOW_END_HOUR):
+        if not (settings.CALL_WINDOW_START_HOUR <= _local_hour(v) < settings.CALL_WINDOW_END_HOUR):
             raise ValueError(
                 f"Scheduled time must be within call hours "
                 f"({settings.CALL_WINDOW_START_HOUR:02d}:00-{settings.CALL_WINDOW_END_HOUR:02d}:00)"
@@ -140,6 +162,7 @@ class TaskEditRequest(BaseModel):
     def validate_scheduled_time(cls, v: datetime | None) -> datetime | None:
         if v is None:
             return v
+        v = _to_naive_utc(v)
         now = datetime.now()
         if v <= now:
             raise ValueError("Scheduled time must be in the future")
@@ -149,7 +172,7 @@ class TaskEditRequest(BaseModel):
             )
         from app.core.config import settings
 
-        if not (settings.CALL_WINDOW_START_HOUR <= v.hour < settings.CALL_WINDOW_END_HOUR):
+        if not (settings.CALL_WINDOW_START_HOUR <= _local_hour(v) < settings.CALL_WINDOW_END_HOUR):
             raise ValueError(
                 f"Scheduled time must be within call hours "
                 f"({settings.CALL_WINDOW_START_HOUR:02d}:00-{settings.CALL_WINDOW_END_HOUR:02d}:00)"
@@ -196,6 +219,7 @@ class TaskDuplicateRequest(BaseModel):
     def validate_scheduled_time(cls, scheduled_time: datetime | None) -> datetime | None:
         if scheduled_time is None:
             return scheduled_time
+        scheduled_time = _to_naive_utc(scheduled_time)
         now = datetime.now()
         if scheduled_time <= now:
             raise ValueError("Scheduled time must be in the future")
@@ -205,7 +229,7 @@ class TaskDuplicateRequest(BaseModel):
             )
         from app.core.config import settings
 
-        if not (settings.CALL_WINDOW_START_HOUR <= scheduled_time.hour < settings.CALL_WINDOW_END_HOUR):
+        if not (settings.CALL_WINDOW_START_HOUR <= _local_hour(scheduled_time) < settings.CALL_WINDOW_END_HOUR):
             raise ValueError(
                 f"Scheduled time must be within call hours "
                 f"({settings.CALL_WINDOW_START_HOUR:02d}:00-{settings.CALL_WINDOW_END_HOUR:02d}:00)"
@@ -231,6 +255,18 @@ class TaskResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    @field_serializer("scheduled_time", "next_retry_at", "created_at", "updated_at")
+    def _serialize_utc(self, value: datetime | None) -> str | None:
+        """Emit naive datetimes as UTC-aware ISO (with trailing 'Z') so that
+        the browser's `new Date(value)` parses them as UTC and renders correctly
+        in the user's local timezone. Without 'Z', JS treats the string as local
+        time and shifts the display by the UTC offset (3h for EEST)."""
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.isoformat().replace("+00:00", "Z")
+
 
 class TaskListResponse(BaseModel):
     items: list[TaskResponse]
@@ -246,6 +282,7 @@ class TaskStatsResponse(BaseModel):
     in_progress: int = 0
     completed: int = 0
     failed: int = 0
+    deferred: int = 0
 
 
 class AdminStatsResponse(BaseModel):
