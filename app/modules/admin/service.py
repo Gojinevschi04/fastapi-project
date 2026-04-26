@@ -190,8 +190,12 @@ class AdminService:
         offset: int = 0,
         status: TaskStatus | None = None,
         language: str | None = None,
+        sort_by: str | None = None,
+        sort_dir: str | None = None,
     ) -> tuple[Sequence[Task], int]:
-        return await self.task_repository.get_all_paginated_admin(limit, offset, status, language)
+        return await self.task_repository.get_all_paginated_admin(
+            limit, offset, status, language, sort_by, sort_dir
+        )
 
     async def update_user_role(self, user_id: int, role: UserRole) -> User | None:
         return await self.user_repository.update_user_role(user_id, role)

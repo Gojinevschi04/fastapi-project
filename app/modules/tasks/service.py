@@ -95,8 +95,12 @@ class TaskService:
         offset: int = 0,
         status: TaskStatus | None = None,
         language: str | None = None,
+        sort_by: str | None = None,
+        sort_dir: str | None = None,
     ) -> tuple[Sequence[Task], int]:
-        return await self.task_repository.get_all_paginated(user_id, limit, offset, status, language)
+        return await self.task_repository.get_all_paginated(
+            user_id, limit, offset, status, language, sort_by, sort_dir
+        )
 
     async def edit_task(self, task_id: int, user_id: int, data: TaskEditRequest, is_admin: bool = False) -> Task:
         if is_admin:

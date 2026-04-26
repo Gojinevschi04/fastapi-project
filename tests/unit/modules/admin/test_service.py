@@ -164,7 +164,7 @@ async def test_get_all_tasks() -> None:
 
     assert total == 1
     assert len(tasks) == 1
-    mock_task_repo.get_all_paginated_admin.assert_called_once_with(50, 0, None, None)
+    mock_task_repo.get_all_paginated_admin.assert_called_once_with(50, 0, None, None, None, None)
 
 
 @pytest.mark.asyncio
@@ -176,7 +176,7 @@ async def test_get_all_tasks_with_status_filter() -> None:
     tasks, total = await service.get_all_tasks(limit=10, offset=0, status=TaskStatus.FAILED)
 
     assert total == 0
-    mock_task_repo.get_all_paginated_admin.assert_called_once_with(10, 0, TaskStatus.FAILED, None)
+    mock_task_repo.get_all_paginated_admin.assert_called_once_with(10, 0, TaskStatus.FAILED, None, None, None)
 
 
 @pytest.mark.asyncio
@@ -188,7 +188,7 @@ async def test_get_all_tasks_custom_pagination() -> None:
     tasks, total = await service.get_all_tasks(limit=20, offset=30)
 
     assert total == 50
-    mock_task_repo.get_all_paginated_admin.assert_called_once_with(20, 30, None, None)
+    mock_task_repo.get_all_paginated_admin.assert_called_once_with(20, 30, None, None, None, None)
 
 
 # --- update_user_role ---

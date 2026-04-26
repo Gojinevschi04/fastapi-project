@@ -78,8 +78,10 @@ async def get_admin_tasks_view(
     offset: Annotated[int, Query(ge=0)] = 0,
     status: TaskStatus | None = None,
     language: str | None = None,
+    sort_by: str | None = None,
+    sort_dir: str | None = None,
 ) -> TaskListResponse:
-    tasks, total = await admin_service.get_all_tasks(limit, offset, status, language)
+    tasks, total = await admin_service.get_all_tasks(limit, offset, status, language, sort_by, sort_dir)
     template_ids = {t.template_id for t in tasks}
     template_name_by_id = await template_repository.get_names_by_ids(template_ids)
     return TaskListResponse(

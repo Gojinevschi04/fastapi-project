@@ -389,7 +389,7 @@ async def test_get_admin_tasks_with_pagination(admin_client: AsyncClient) -> Non
         mock_names.return_value = {}
         response = await admin_client.get("/admin/tasks?limit=10&offset=20")
         assert response.status_code == 200
-        mock_get.assert_called_once_with(10, 20, None, None)
+        mock_get.assert_called_once_with(10, 20, None, None, None, None)
 
 
 @pytest.mark.asyncio

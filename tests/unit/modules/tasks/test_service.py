@@ -180,7 +180,7 @@ async def test_get_tasks_paginated(mock_task: Task) -> None:
 
     assert len(tasks) == 1
     assert total == 1
-    mock_task_repo.get_all_paginated.assert_called_once_with(1, 20, 0, None, None)
+    mock_task_repo.get_all_paginated.assert_called_once_with(1, 20, 0, None, None, None, None)
 
 
 @pytest.mark.asyncio
@@ -193,7 +193,7 @@ async def test_get_tasks_with_status_filter(mock_task: Task) -> None:
     tasks, total = await service.get_tasks(user_id=1, limit=10, offset=0, status=TaskStatus.PENDING)
 
     assert len(tasks) == 1
-    mock_task_repo.get_all_paginated.assert_called_once_with(1, 10, 0, TaskStatus.PENDING, None)
+    mock_task_repo.get_all_paginated.assert_called_once_with(1, 10, 0, TaskStatus.PENDING, None, None, None)
 
 
 @pytest.mark.asyncio

@@ -8,6 +8,24 @@ from app.core.repositories import Repository
 from app.modules.tasks.models import Task
 from app.modules.tasks.schema import TaskStatus
 
+# Allowlist for sort columns — prevents SQL-injection via a free-form query param.
+_TASK_SORT_COLUMNS = {
+    "id": Task.id,
+    "target_phone": Task.target_phone,
+    "status": Task.status,
+    "template_id": Task.template_id,
+    "user_id": Task.user_id,
+    "scheduled_time": Task.scheduled_time,
+    "created_at": Task.created_at,
+    "updated_at": Task.updated_at,
+}
+
+
+def _apply_task_order(query, sort_by: str | None, sort_dir: str | None):
+    column = _TASK_SORT_COLUMNS.get(sort_by or "", Task.created_at)
+    direction = column.asc() if (sort_dir or "desc").lower() == "asc" else column.desc()
+    return query.order_by(direction)
+
 
 class TaskRepository(Repository):
     async def create(self, task: Task) -> Task:
@@ -31,6 +49,8 @@ class TaskRepository(Repository):
         offset: int = 0,
         status: TaskStatus | None = None,
         language: str | None = None,
+        sort_by: str | None = None,
+        sort_dir: str | None = None,
     ) -> tuple[Sequence[Task], int]:
         from app.modules.templates.models import DialogTemplate
 
@@ -49,7 +69,7 @@ class TaskRepository(Repository):
                 DialogTemplate, DialogTemplate.id == Task.template_id
             ).where(DialogTemplate.language == language)
 
-        query = query.order_by(Task.created_at.desc()).offset(offset).limit(limit)
+        query = _apply_task_order(query, sort_by, sort_dir).offset(offset).limit(limit)
 
         result = await self._session.exec(query)
         tasks = result.all()
@@ -97,6 +117,8 @@ class TaskRepository(Repository):
         offset: int = 0,
         status: TaskStatus | None = None,
         language: str | None = None,
+        sort_by: str | None = None,
+        sort_dir: str | None = None,
     ) -> tuple[Sequence[Task], int]:
         from app.modules.templates.models import DialogTemplate
 
@@ -115,7 +137,7 @@ class TaskRepository(Repository):
                 DialogTemplate, DialogTemplate.id == Task.template_id
             ).where(DialogTemplate.language == language)
 
-        query = query.order_by(Task.created_at.desc()).offset(offset).limit(limit)
+        query = _apply_task_order(query, sort_by, sort_dir).offset(offset).limit(limit)
 
         result = await self._session.exec(query)
         tasks = result.all()
